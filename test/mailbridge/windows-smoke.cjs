@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { _electron: electron } = require('@playwright/test');
+const { _electron: electron, expect } = require('@playwright/test');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -31,11 +31,24 @@ const path = require('node:path');
       await application.evaluate(({ app }) => app.setLoginItemSettings({ openAtLogin: false, path: process.execPath }));
     }
     assert.equal(protection.name, 'MailBridge');
-    const window = await application.firstWindow();
-    await window.getByText('Connect an email account', { exact: true }).waitFor({ timeout: 60000 });
+    let window;
+    await expect.poll(async () => {
+      for (const candidate of application.windows()) {
+        if (await candidate.getByText('Connect an email account', { exact: true }).isVisible().catch(() => false)) {
+          window = candidate;
+          return true;
+        }
+      }
+      return false;
+    }, { timeout: 60000, message: 'Account setup window must open' }).toBe(true);
     await window.getByText('IMAP / SMTP', { exact: true }).click();
     await window.getByText('IMAP', { exact: false }).first().waitFor();
     fs.writeFileSync('app/dist/mailbridge-smoke.log', 'Packaged application launched and account setup opened successfully.\n');
+  } catch (error) {
+    const windows = [];
+    for (const page of application.windows()) windows.push({ url: page.url(), body: await page.locator('body').innerText().catch(() => '') });
+    fs.writeFileSync('app/dist/mailbridge-smoke.log', `${error.stack}\n${JSON.stringify(windows, null, 2)}\n`);
+    throw error;
   } finally {
     if (process.platform === 'win32') await application.evaluate(({ app }) => app.setLoginItemSettings({ openAtLogin: false, path: process.execPath })).catch(() => {});
     await application.close();
