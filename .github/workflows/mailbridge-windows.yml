@@ -128,8 +128,11 @@ jobs:
           if ($process.ExitCode -ne 0) { throw "Installer exited with $($process.ExitCode)" }
           $env:MAILBRIDGE_DESKTOP_BINARY = Join-Path $installed 'MailBridge.exe'
           if (!(Test-Path $env:MAILBRIDGE_DESKTOP_BINARY)) { throw 'Installed executable is missing' }
-          node test/mailbridge/windows-smoke.cjs
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          foreach ($attempt in 1..5) {
+            Write-Host "Installed fresh-profile launch $attempt of 5"
+            node test/mailbridge/windows-smoke.cjs
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
           $process = Start-Process -FilePath (Join-Path $installed 'unins000.exe') -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -PassThru -Wait
           if ($process.ExitCode -ne 0 -or (Test-Path $env:MAILBRIDGE_DESKTOP_BINARY)) { throw 'Uninstall did not remove the executable' }
           if (Get-ItemProperty -Path 'HKCU:\Software\RegisteredApplications' -Name MailBridge -ErrorAction SilentlyContinue) { throw 'Uninstall left the registered application entry' }
