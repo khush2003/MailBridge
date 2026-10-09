@@ -65,7 +65,7 @@ jobs:
         run: |
           python -m pip install -r mailsync/test/requirements.txt
           $env:MAILSYNC_BIN = (Resolve-Path app/mailsync.exe).Path
-          python -m pytest mailsync/test/test_mailbridge.py --servers fake -n 0 -q
+          python -m pytest mailsync/test/test_mailbridge.py --servers fake -n 0 -q --basetemp=mailbridge-artifacts/native
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Verify Outlook export MIME serialization
         run: powershell.exe -NoProfile -File test/mailbridge/outlook-export.ps1
@@ -114,5 +114,6 @@ jobs:
           name: MailBridge-failure-logs
           path: |
             mailsync/test/runs/
+            mailbridge-artifacts/native/
             app/dist/mailbridge-smoke.log
           if-no-files-found: ignore
