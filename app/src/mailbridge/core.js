@@ -48,10 +48,10 @@ function newer(a, b) { return !b || a.clock > b.clock || (a.clock === b.clock &&
 
 // Peer import receipts prove delivery; local transport acceptance alone never authorizes collection.
 class ArchiveSync extends EventEmitter {
-  constructor({ root, workspace, key, device, transport, native, peers = [], cloudRetention = true }) {
+  constructor({ root, workspace, key, device, transport, native, peers = [], cloudRetention = true, maxUploadBytes = 64 * 1024 * 1024 }) {
     super();
     if (!/^[a-f0-9]{32}$/.test(workspace) || key.length !== 32 || !/^[a-f0-9-]{36}$/.test(device)) throw new Error('Invalid sync identity');
-    Object.assign(this, { root, workspace, key, device, transport, native, peers, cloudRetention });
+    Object.assign(this, { root, workspace, key, device, transport, native, peers, cloudRetention, maxUploadBytes });
     this.journalPath = path.join(root, 'sync-journal.json');
     this.journal = fs.existsSync(this.journalPath) ? JSON.parse(fs.readFileSync(this.journalPath, 'utf8')) :
       { workspace, clock: 0, messages: {}, acknowledgements: {}, deletedCloud: {}, devices: {}, seen: {} };
@@ -124,21 +124,35 @@ class ArchiveSync extends EventEmitter {
         this.save();
       }
       this.updateStatus({ phase: 'uploading' });
+      let uploadedBytes = 0; let uploadFailure = null;
+      const reservedBytes = Math.max(8 * 1024 * 1024, Buffer.byteLength(JSON.stringify(this.journal.messages)) * 2);
+      const availableBytes = health.quota ? health.quota.limit - health.quota.used - reservedBytes : Infinity;
       for (const record of local) {
         const identity = `${record.key}-${record.digest}`;
         const name = this.name('mail', identity);
         if (known.has(name) || this.journal.deletedCloud[identity]) continue;
+        if (uploadedBytes > 0 && uploadedBytes + record.size > this.maxUploadBytes) break;
+        if (Math.ceil((uploadedBytes + record.size) * 4 / 3) + 4096 > availableBytes) {
+          uploadFailure = new Error('Google Drive storage is nearly full. Free space or enable the transfer buffer after confirming both PCs.');
+          break;
+        }
         const raw = fs.readFileSync(path.join(this.root, 'blobs', `${record.digest}.eml`));
         if (raw.length !== record.size || hash(raw) !== record.digest) throw new Error('Local retained message checksum mismatch');
         const { key, digest, email, folder, size } = record;
         const role = record.role || '';
-        await this.put(name, { descriptor: { schema: 1, key, digest, email, folder, role, size }, raw: raw.toString('base64'), state: this.journal.messages[key].state });
+        try {
+          await this.put(name, { descriptor: { schema: 1, key, digest, email, folder, role, size }, raw: raw.toString('base64'), state: this.journal.messages[key].state });
+        } catch (error) {
+          if (error.code !== 'ENOSPC' && !(error.status === 403 && /quota|storage/i.test(error.message))) throw error;
+          uploadFailure = error; break;
+        }
+        uploadedBytes += size;
         known.add(name);
       }
       // Receipts are emitted only after durable storage and a successful native import on that PC.
       for (const [identity, receipts] of Object.entries(this.journal.acknowledgements)) {
         const name = this.name('ack', `${this.device}-${identity}`);
-        if (receipts[this.device] && !known.has(name)) await this.put(name, { device: this.device, identity });
+        if (receipts[this.device] && !known.has(name) && (known.has(this.name('mail', identity)) || this.journal.deletedCloud[identity])) await this.put(name, { device: this.device, identity });
       }
       for (const object of objects.filter(o => o.name.startsWith(this.name('ack', '')))) {
         const receipt = await this.get(object);
@@ -189,13 +203,15 @@ class ArchiveSync extends EventEmitter {
         }
         this.save();
       }
+      if (uploadFailure) throw uploadFailure;
       let pending = 0;
       for (const receipts of Object.values(this.journal.acknowledgements)) if (!this.peers.length || !this.peers.every(peer => receipts[peer])) pending++;
       this.updateStatus({ phase: health.type === 'folder' ? 'folder-ready' : 'connected', retained: Object.keys(this.journal.messages).length, pending,
         peers: Object.entries(this.journal.devices).map(([device, info]) => ({ device, ...info })),
         lastSuccess: Date.now(), quota: health.quota, error: null });
     } catch (error) {
-      this.updateStatus({ phase: 'error', error: error.message });
+      const pending = Object.values(this.journal.acknowledgements).filter(receipts => !this.peers.length || !this.peers.every(peer => receipts[peer])).length;
+      this.updateStatus({ phase: 'error', error: error.message, pending });
       throw error;
     } finally { this.updateStatus({ running: false }); }
   }

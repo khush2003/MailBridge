@@ -19,7 +19,7 @@ class MailBridgeController extends EventEmitter {
   publicStatus: any = { phase: 'setup', running: false, retained: 0, pending: 0, peers: [] };
   configurationVersion = '';
   defaultDevice = crypto.randomUUID();
-  retentionStats = { unretained: 0, mailSyncBusy: false };
+  retentionStats = { unretained: 0, mailSyncBusy: false, mailSyncInitialized: false };
   constructor() {
     super();
     this.root = path.join(AppEnv.getLoadSettings().configDirPath, 'mailbridge');
@@ -118,6 +118,11 @@ class MailBridgeController extends EventEmitter {
   }
   publish(values: any) {
     this.publicStatus = { ...this.publicStatus, ...values, ...this.retentionStats, device: this.settings().device, heartbeat: Date.now() };
+    const config = this.settings();
+    this.publicStatus.safeToClear = ['connected', 'folder-ready'].includes(this.publicStatus.phase) &&
+      !this.publicStatus.error && !this.publicStatus.running && config.peers.length === 1 &&
+      this.publicStatus.mailSyncInitialized && this.publicStatus.unretained === 0 && !this.publicStatus.mailSyncBusy && this.publicStatus.pending === 0 &&
+      this.publicStatus.retained > 0 && AccountStore.accounts().every(account => account.syncState === 'ok');
     durableWrite(path.join(this.root, 'status.json'), JSON.stringify(this.publicStatus));
     this.emit('status', this.publicStatus);
   }
@@ -135,14 +140,14 @@ class MailBridgeController extends EventEmitter {
       const config = this.settings();
       if (!config.workspace || !config.driveAccount) {
         const records = [];
-        let unretained = 0; let mailSyncBusy = false;
+        let unretained = 0; let mailSyncBusy = false; let mailSyncInitialized = true;
         for (const account of AccountStore.accounts()) {
           if (!this.bridge._clients[account.id]) continue;
           const result = await this.bridge.mailbridgeRequest(account.id, { operation: 'list' });
           records.push(...result.records);
-          unretained += result.unretained || 0; mailSyncBusy ||= result.mailSyncBusy;
+          unretained += result.unretained || 0; mailSyncBusy ||= result.mailSyncBusy; mailSyncInitialized &&= result.mailSyncInitialized === true;
         }
-        this.retentionStats = { unretained, mailSyncBusy };
+        this.retentionStats = { unretained, mailSyncBusy, mailSyncInitialized };
         this.publish({ phase: 'setup', running: false, retained: new Set(records.map(record => record.key)).size, error: null }); return;
       }
       const version = JSON.stringify({ workspace: config.workspace, device: config.device, peers: config.peers,
@@ -154,14 +159,14 @@ class MailBridgeController extends EventEmitter {
           native: {
             list: async () => {
               const records = [];
-              let unretained = 0; let mailSyncBusy = false;
+              let unretained = 0; let mailSyncBusy = false; let mailSyncInitialized = true;
               for (const account of AccountStore.accounts()) {
                 if (!this.bridge._clients[account.id]) throw new Error(`Mail engine is not running for ${account.emailAddress}`);
                 const result = await this.bridge.mailbridgeRequest(account.id, { operation: 'list' });
                 records.push(...result.records);
-                unretained += result.unretained || 0; mailSyncBusy ||= result.mailSyncBusy;
+                unretained += result.unretained || 0; mailSyncBusy ||= result.mailSyncBusy; mailSyncInitialized &&= result.mailSyncInitialized === true;
               }
-              this.retentionStats = { unretained, mailSyncBusy };
+              this.retentionStats = { unretained, mailSyncBusy, mailSyncInitialized };
               return records;
             },
             import: async (descriptor: any, state: any) => {
@@ -182,6 +187,51 @@ class MailBridgeController extends EventEmitter {
   requestSync() {
     durableWrite(path.join(this.root, 'sync-request.json'), JSON.stringify({ requested: Date.now() }));
     if (this.bridge) return this.tick();
+  }
+  importing = false;
+  async importOutlook(accountId: string) {
+    if (process.platform !== 'win32') throw new Error('Outlook PST import requires classic Outlook on Windows');
+    if (this.importing) throw new Error('An Outlook import is already running');
+    const account = AccountStore.accounts().find(a => a.id === accountId);
+    if (!account || !this.bridge?._clients[accountId]) throw new Error('Add and connect the destination mail account first');
+    const chosen = await dialog.showOpenDialog({ title: 'Choose an Outlook PST backup to import', filters: [{ name: 'Outlook data files', extensions: ['pst'] }], properties: ['openFile'] });
+    if (chosen.canceled || !chosen.filePaths[0]) return;
+    this.importing = true;
+    const temporary = path.join(this.root, 'imports');
+    const snapshot = path.join(temporary, `outlook-${crypto.randomUUID()}.pst`);
+    fs.mkdirSync(temporary, { recursive: true });
+    let count = 0; let warnings = 0;
+    try {
+      // Outlook reads a disposable snapshot; the selected PST remains untouched.
+      await fs.promises.copyFile(chosen.filePaths[0], snapshot);
+      const script = path.join(app.getAppPath().replace(/app\.asar$/, 'app.asar.unpacked'), 'mailbridge-tools', 'import-outlook.ps1');
+      const { spawn } = require('child_process');
+      const readline = require('readline');
+      const child = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script, '-PstPath', snapshot, '-OutputDirectory', temporary], { windowsHide: true });
+      let failure = '';
+      child.stderr.on('data', (bytes: Buffer) => { failure = (failure + bytes.toString('utf8')).slice(-2000); });
+      const finished = new Promise<number>((resolve, reject) => { child.once('error', reject); child.once('close', resolve); });
+      finished.catch(() => {});
+      try {
+        for await (const line of readline.createInterface({ input: child.stdout, crlfDelay: Infinity })) {
+          if (!line.trim()) continue;
+          const record = JSON.parse(line);
+          if (record.warning) { warnings++; continue; }
+          await this.bridge.mailbridgeRequest(accountId, { operation: 'import-file', ...record });
+          fs.unlinkSync(path.join(temporary, record.file));
+          count++;
+          this.publish({ importProgress: { count, warnings } });
+        }
+        const code = await finished;
+        if (code !== 0) throw new Error(failure || 'Outlook export failed');
+      } finally { if (child.exitCode === null) child.kill(); }
+      this.requestSync();
+      return { count, warnings };
+    } finally {
+      this.importing = false;
+      // Preserve failed EML exports for recovery, but remove the disposable source snapshot.
+      await fs.promises.unlink(snapshot).catch(() => {});
+    }
   }
   openArchive() { return shell.openPath(path.join(this.root, 'blobs')); }
 }

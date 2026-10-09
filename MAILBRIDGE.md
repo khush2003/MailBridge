@@ -33,6 +33,12 @@ The 15 GB Google allowance is shared with the account's other storage. Permanent
 
 Folder mode requires no Google developer credentials. For direct sign-in, the distributor supplies a Google **Desktop app** OAuth client with Drive API enabled. Fill `app/mailbridge-oauth.json` before packaging, or use **Developer connection settings** in the app. Both PCs must use credentials from the same Google application. Only `drive.appdata` is requested. Access/refresh tokens and archive keys are encrypted by Electron safeStorage; Linux development requires a usable desktop keyring. End users sign in in their own browser.
 
+## Import Outlook PST backups
+
+On Windows, add the destination company account, open **Archive & sync**, choose that account under **Import existing Outlook mail**, then select a PST backup. Classic Outlook 2010 or Microsoft 365 must be installed. The importer creates a disposable copy before Outlook opens it; your selected source remains untouched. Allow enough disk space for that copy and the imported mail. Leave the original PST backup intact until you have checked the results on both PCs.
+
+Import includes sent and received mail, HTML/plain bodies, attachments, inline content IDs, dates, Message-IDs, read status, and flags. It excludes unsent drafts, calendars, and contacts. Messages that cannot be exported are counted as warnings. Retrying a completed import deduplicates messages by their stable identity. Outlook COM compatibility requires verification on a PC with classic Outlook; CI checks the MIME serializer and native import independently.
+
 ## Build and verify
 
 ```sh

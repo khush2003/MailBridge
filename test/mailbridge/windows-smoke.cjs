@@ -1,3 +1,4 @@
+const assert = require('node:assert/strict');
 const { _electron: electron } = require('@playwright/test');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -8,6 +9,14 @@ const path = require('node:path');
   const application = await electron.launch({ executablePath: path.join(root, 'MailBridge.exe'),
     args: ['--config-dir-path', config], timeout: 60000 });
   try {
+    const protection = await application.evaluate(({ app, safeStorage }) => {
+      if (!safeStorage.isEncryptionAvailable()) return { available: false };
+      const encrypted = safeStorage.encryptString('mailbridge-windows-test');
+      return { available: true, roundtrip: safeStorage.decryptString(encrypted), name: app.getName() };
+    });
+    assert.equal(protection.available, true, 'Windows credential protection must be available');
+    assert.equal(protection.roundtrip, 'mailbridge-windows-test');
+    assert.equal(protection.name, 'MailBridge');
     const window = await application.firstWindow();
     await window.getByText('Connect an email account', { exact: true }).waitFor({ timeout: 60000 });
     await window.getByText('IMAP / SMTP', { exact: true }).click();

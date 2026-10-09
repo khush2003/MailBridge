@@ -1,10 +1,11 @@
 import React from 'react';
+import { AccountStore } from 'mailspring-exports';
 import MailBridge from '../../../src/mailbridge/controller';
 const { clipboard } = require('@electron/remote');
 const size = (bytes: number) => `${(bytes / 1024 ** 3).toFixed(2)} GB`;
 
 export default class ArchivePreferences extends React.Component<{}, any> {
-  state = { status: MailBridge.status(), config: MailBridge.settings(), busy: false, message: '', pairing: '', clientId: '', clientSecret: '' };
+  state = { status: MailBridge.status(), config: MailBridge.settings(), busy: false, message: '', pairing: '', clientId: '', clientSecret: '', importAccount: '' };
   timer: any;
   componentDidMount() { this.timer = setInterval(() => this.setState({ status: MailBridge.status(), config: MailBridge.settings() }), 1000); }
   componentWillUnmount() { clearInterval(this.timer); }
@@ -25,14 +26,14 @@ export default class ArchivePreferences extends React.Component<{}, any> {
         <span className="mailbridge-status-dot" /><div><strong>{status.phase === 'connected' ? 'Google Drive connected' : status.phase === 'folder-ready' ? 'Shared Drive folder available' : status.running ? 'Synchronizing archive' : status.phase === 'setup' ? 'Finish setup to connect your PCs' : 'Sync needs attention'}</strong>
           <p>{status.error || (status.lastSuccess ? `Last sync ${new Date(status.lastSuccess).toLocaleString()}` : 'Local retention runs whenever the mail app is open.')}</p></div>
       </div>
-      {(status.unretained > 0 || status.mailSyncBusy) && <div className="mb-feedback" role="status">Your mailbox is still being downloaded. {status.unretained || 0} known messages still need permanent local copies. Keep the company mailbox intact until downloading finishes.</div>}
+      {(status.unretained > 0 || status.mailSyncBusy || !status.mailSyncInitialized) && <div className="mb-feedback" role="status">Your mailbox is still being downloaded. {status.unretained || 0} known messages still need permanent local copies. Keep the company mailbox intact until downloading finishes.</div>}
       <div className="mb-metrics">
         <div><strong>{status.retained || 0}</strong><span>Messages retained</span></div>
         <div><strong>{status.pending || 0}</strong><span>Awaiting the other PC</span></div>
         <div><strong>{status.quota ? size(status.quota.used) : '—'}</strong><span>{status.quota ? `of ${size(status.quota.limit)} on Drive` : 'Google Drive storage'}</span></div>
       </div>
       {message && <div className="mb-feedback" role="alert">{message}</div>}
-      <section><h2>1. Connect Google Drive</h2><p>Use the same Google account on both PCs. Only this app’s private Drive storage is accessed.</p>
+      <section><h2>1. Connect Google Drive</h2><p>Use the same Google account and shared folder on both PCs. Direct sign-in uses this app’s private Drive storage.</p>
         {config.driveAccount ? <div className="mb-inline"><strong>{config.driveAccount}</strong><button disabled={busy} onClick={() => this.perform(() => MailBridge.disconnectDrive())}>Disconnect</button></div> :
           <div className="mb-inline"><button className="btn btn-emphasis" disabled={busy} onClick={() => this.perform(() => MailBridge.connectFolder(), 'Shared folder selected. Choose the same folder on your other PC.')}>Choose Drive for desktop folder</button><button disabled={busy} onClick={() => this.perform(() => MailBridge.connectDrive(), 'Google Drive connected.')}>Connect directly</button></div>}
         {config.transport === 'folder' && <p className="mb-muted">{config.sharedFolder}<br />Folder access is checked locally. Google Drive handles uploading; receipts from the other PC confirm delivery.</p>}
@@ -57,7 +58,12 @@ export default class ArchivePreferences extends React.Component<{}, any> {
         <p className="mb-muted">Turn this off to use Drive as a transfer buffer. Copies are removed from Drive only after both confirmed PCs have stored them locally. Keep both PCs backed up; a replacement PC needs the existing archive to recover older mail.</p>
         <div className="mb-inline"><button className="btn btn-emphasis" disabled={busy || status.running} onClick={() => this.perform(async () => MailBridge.requestSync(), 'Sync requested.')}>Sync now</button><button onClick={() => MailBridge.openArchive()}>Open local message archive</button></div>
       </section>
-      <section><h2>Clearing the company mailbox</h2><p>Wait until the mailbox has finished downloading, “Awaiting the other PC” reaches zero, and the second PC is confirmed. You can then clear old messages in webmail; retained folders keep complete local copies. Server deletions are never sent to the local archive.</p></section>
+      {process.platform === 'win32' && <section><h2>Import existing Outlook mail</h2><p>Choose a PST backup from Outlook 2010 or classic Outlook. MailBridge copies it first, then imports mail, attachments, read status, and flags into the selected account. Classic Outlook must be installed. Drafts, calendars, and contacts are excluded.</p>
+        <label>Destination account<select value={this.state.importAccount} onChange={e => this.setState({ importAccount: e.target.value })}><option value="">Choose your company account</option>{AccountStore.accounts().map(account => <option key={account.id} value={account.id}>{account.emailAddress}</option>)}</select></label>
+        <button disabled={busy || !this.state.importAccount} onClick={() => this.perform(async () => { const result = await MailBridge.importOutlook(this.state.importAccount); if (result) this.setState({ message: `Imported ${result.count} messages. ${result.warnings} messages could not be exported; keep your original PST.` }); })}>Import Outlook PST</button>
+        {status.importProgress && <p>{status.importProgress.count} messages imported · {status.importProgress.warnings} export warnings</p>}
+      </section>}
+      <section><h2>Clearing the company mailbox</h2><strong>{status.safeToClear ? 'Both PCs have confirmed the retained mail. Old server mail can be cleared.' : 'Keep server mail until capture and two-PC delivery are confirmed.'}</strong><p>Wait until the mailbox has finished downloading, “Awaiting the other PC” reaches zero, the second PC is confirmed, and sync reports no errors. You can then clear old messages in webmail; retained folders keep complete local copies. Server deletions are never sent to the local archive.</p></section>
     </div>;
   }
 }

@@ -96,3 +96,72 @@ test('failure to import or write never acknowledges a remote message', async () 
   await assert.rejects(b.sync.run(), /import failed/);
   assert.equal([...remote.objects.keys()].some(n => n.includes(`-ack-${b.sync.device}`)), false);
 });
+
+test('Drive desktop folders require actual peer delivery before reporting safe cleanup', async () => {
+  const { FolderTransport } = require('../../app/src/mailbridge/folder-transport');
+  const folders = [0, 1].map(() => fs.mkdtempSync(path.join(os.tmpdir(), 'mailbridge-drive-')));
+  const transports = folders.map(root => new FolderTransport(root));
+  const workspace = crypto.randomBytes(16).toString('hex'), key = crypto.randomBytes(32);
+  const ids = [crypto.randomUUID(), crypto.randomUUID()];
+  const a = pc(transports[0], workspace, key, ids[0], [ids[1]]);
+  const b = pc(transports[1], workspace, key, ids[1], [ids[0]]);
+  const record = a.add(Buffer.from('Mail before Drive finishes uploading'));
+  await a.sync.run(); await b.sync.run();
+  assert.equal(a.sync.status.phase, 'folder-ready');
+  assert.equal(a.sync.safeToClean(record), false);
+  assert.equal(b.records.size, 0);
+  fs.writeFileSync(path.join(folders[1], `${workspace}-mail-partial.mb.tmp`), 'partial transfer');
+  const replicate = (from, to) => { for (const name of fs.readdirSync(from).filter(n => n.endsWith('.mb'))) fs.copyFileSync(path.join(from, name), path.join(to, name)); };
+  replicate(folders[0], folders[1]); await b.sync.run();
+  assert.equal(b.records.size, 1);
+  assert.equal(a.sync.safeToClean(record), false);
+  replicate(folders[1], folders[0]); await a.sync.run();
+  assert.equal(a.sync.safeToClean(record), true);
+  await assert.rejects(transports[0].get('../secret.mb'), /Invalid/);
+  fs.rmSync(folders[0], { recursive: true });
+  await assert.rejects(a.sync.run(), /unavailable/);
+  assert.equal(fs.existsSync(path.join(a.root, 'blobs', `${record.digest}.eml`)), true);
+});
+
+test('independent offline folder, read, and flag changes converge without an echo', async () => {
+  const { a, b, remote } = pair();
+  const record = a.add(Buffer.from('Offline concurrent changes'));
+  await a.sync.run(); await b.sync.run(); await a.sync.run(); await b.sync.run();
+  remote.online = false;
+  a.records.get(record.key).folder = 'Projects';
+  b.records.get(record.key).unread = false; b.records.get(record.key).starred = true;
+  await assert.rejects(a.sync.run()); await assert.rejects(b.sync.run());
+  remote.online = true;
+  await a.sync.run(); await b.sync.run(); await a.sync.run(); await b.sync.run();
+  for (const peer of [a, b]) {
+    assert.equal(peer.records.get(record.key).folder, 'Projects');
+    assert.equal(peer.records.get(record.key).unread, false);
+    assert.equal(peer.records.get(record.key).starred, true);
+  }
+  const state = JSON.stringify(a.sync.journal.messages[record.key].state);
+  await a.sync.run(); await b.sync.run(); await a.sync.run();
+  assert.equal(JSON.stringify(a.sync.journal.messages[record.key].state), state);
+});
+
+test('bounded upload batches make progress and a full Drive does not prevent confirmed collection', async () => {
+  const { a, b, remote } = pair(false);
+  const first = a.add(Buffer.from('First mail to deliver'));
+  a.add(Buffer.from('Second mail to deliver'));
+  a.sync.maxUploadBytes = 1;
+  await a.sync.run();
+  assert.equal([...remote.objects.keys()].filter(n => n.includes('-mail-')).length, 1);
+  assert.equal([...remote.objects.keys()].filter(n => n.includes(`-ack-${a.sync.device}`)).length, 1);
+  await b.sync.run();
+  const put = remote.put.bind(remote);
+  remote.put = async (name, bytes) => {
+    if (name.includes('-mail-')) { const error = new Error('Drive storage quota exceeded'); error.status = 403; throw error; }
+    return put(name, bytes);
+  };
+  await assert.rejects(a.sync.run(), /quota/);
+  assert.equal(a.sync.safeToClean(first), true);
+  assert.equal([...remote.objects.keys()].filter(n => n.includes('-mail-')).length, 0);
+  assert.equal(a.records.size, 2);
+  remote.put = put;
+  await a.sync.run(); await b.sync.run(); await a.sync.run();
+  assert.equal(b.records.size, 2);
+});

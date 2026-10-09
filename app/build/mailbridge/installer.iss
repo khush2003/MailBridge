@@ -20,6 +20,7 @@ OutputBaseFilename=MailBridge-Setup-{#AppVersion}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=..\resources\win\mailbridge.ico
 UninstallDisplayIcon={app}\MailBridge.exe
 LicenseFile=..\..\..\LICENSE.md
 [Files]
@@ -33,3 +34,12 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
 Filename: "{app}\MailBridge.exe"; Description: "Open MailBridge"; Flags: nowait postinstall skipifsilent
 [UninstallRun]
 Filename: "{app}\MailBridge.exe"; Parameters: "--mailbridge-disable-startup"; Flags: runhidden waituntilterminated skipifdoesntexist
+[Registry]
+Root: HKCU; Subkey: "Software\RegisteredApplications"; ValueType: string; ValueName: "MailBridge"; ValueData: "Software\MailBridge\Capabilities"; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\MailBridge\Capabilities"; ValueType: string; ValueName: "ApplicationName"; ValueData: "MailBridge"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\MailBridge\Capabilities"; ValueType: string; ValueName: "ApplicationDescription"; ValueData: "Mail with a permanent local archive and encrypted sync"
+Root: HKCU; Subkey: "Software\MailBridge\Capabilities\URLAssociations"; ValueType: string; ValueName: "mailto"; ValueData: "MailBridge.Mailto"
+Root: HKCU; Subkey: "Software\Classes\MailBridge.Mailto"; ValueType: string; ValueName: ""; ValueData: "MailBridge Mail URL"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\MailBridge.Mailto"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\MailBridge.Mailto\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\MailBridge.exe"",0"
+Root: HKCU; Subkey: "Software\Classes\MailBridge.Mailto\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\MailBridge.exe"" ""%1"""

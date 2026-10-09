@@ -63,6 +63,8 @@ jobs:
           $env:MAILSYNC_BIN = (Resolve-Path app/mailsync.exe).Path
           python -m pytest mailsync/test/test_mailbridge.py --servers fake -n 0 -q
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Verify Outlook export MIME serialization
+        run: powershell.exe -NoProfile -File test/mailbridge/outlook-export.ps1
       - name: Install desktop dependencies
         run: npm ci
       - name: Verify sync and type checking

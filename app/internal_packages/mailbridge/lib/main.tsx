@@ -14,7 +14,7 @@ class ArchiveStatus extends React.Component<{}, { status: any }> {
     return <button className={`mailbridge-status ${status.phase}`} title={status.error || 'Archive & sync settings'}
       onClick={() => { Actions.openPreferences(); Actions.switchPreferencesTab('Archive'); }}>
       <span className="mailbridge-status-dot" />
-      {['connected', 'folder-ready'].includes(status.phase) ? `Synced · ${status.retained} retained` : status.running ? 'Syncing archive…' : status.phase === 'setup' ? 'Set up archive sync' : 'Sync needs attention'}
+      {status.phase === 'connected' ? `Synced · ${status.retained} retained` : status.phase === 'folder-ready' ? `Drive folder ready · ${status.pending || 0} awaiting peer` : status.running ? 'Syncing archive…' : status.phase === 'setup' ? 'Set up archive sync' : 'Sync needs attention'}
     </button>;
   }
 }

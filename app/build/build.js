@@ -210,7 +210,7 @@ function buildPackagerOptions() {
     }[platform],
     icon: {
       darwin: path.resolve(appDir, 'build', 'resources', 'mac', 'mailspring.icns'),
-      win32: path.resolve(appDir, 'build', 'resources', 'win', 'mailspring-square.ico'),
+      win32: path.resolve(appDir, 'build', 'resources', 'win', 'mailbridge.ico'),
       linux: undefined,
     }[platform],
     name: { darwin: 'MailBridge', win32: 'MailBridge', linux: 'mailbridge' }[platform],
@@ -233,6 +233,7 @@ function buildPackagerOptions() {
           '*.ico',
           '**/vendor/**',
           'examples/**',
+          'mailbridge-tools/**',
           '**/src/tasks/**',
           '**/src/quickpreview/**',
           '**/mcp-stdio-bridge.js',
