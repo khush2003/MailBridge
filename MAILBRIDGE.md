@@ -7,6 +7,7 @@ An Office-style Windows mail client forked from Mailspring, with permanent local
 - Connects directly to company IMAP/SMTP, using the existing mature composer, attachments, threading, search, folders, and account setup.
 - Captures complete incoming mail of every age and successful outgoing SMTP submissions as durable `.eml` files, including attachments.
 - Keeps independent retained placements. Server expunge and folder removal never remove these placements. The normal Inbox/Sent views include retained copies.
+- Opens complete original-message exports from the retained archive even when the server copy is gone or the PC is offline.
 - Rebuilds a lost mail cache from the local archive, including locally saved read/flag/folder state.
 - Encrypts transport objects with AES-256-GCM and a workspace pairing key protected by the OS credential store.
 - Uses either a shared Google Drive for desktop folder or direct Google Drive API access. Direct access uses desktop OAuth with PKCE, token refresh, app-private storage, verified uploads, and quota reporting.
