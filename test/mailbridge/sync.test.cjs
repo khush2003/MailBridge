@@ -22,7 +22,7 @@ function pc(remote, workspace, key, device, peers = [], cloudRetention = true) {
     async import(descriptor, state) {
       const raw = fs.readFileSync(path.join(root, 'blobs', `${descriptor.digest}.eml`));
       assert.equal(hash(raw), descriptor.digest);
-      records.set(descriptor.key, { ...descriptor, ...records.get(descriptor.key), ...(state || { unread: true, starred: false }) });
+      records.set(descriptor.key, { ...descriptor, ...records.get(descriptor.key), ...(state || (records.has(descriptor.key) ? {} : { unread: true, starred: false })) });
     },
   };
   const sync = new ArchiveSync({ root, workspace, key, device, transport: remote, native, peers, cloudRetention });
@@ -178,10 +178,27 @@ test('a PC first encountering mail in server Trash cannot relocate an existing r
 
 test('a freshly captured self-addressed Inbox copy does not override the sender\'s Sent archive', async () => {
   const { a, b } = pair();
+  for (let index = 0; index < 10; index++) b.add(Buffer.from(`Other existing mail ${index}`));
   const raw = Buffer.from('Self-addressed outgoing mail');
   const record = a.add(raw); record.folder = 'Sent'; record.role = 'sent';
   b.add(raw);
   await b.sync.run(); await a.sync.run(); await b.sync.run(); await a.sync.run();
   assert.equal(a.records.get(record.key).folder, 'Sent');
   assert.equal(b.records.get(record.key).folder, 'Sent');
+});
+
+test('a large initial archive scan cannot overwrite existing peer read and flag changes', async () => {
+  const { a, b } = pair();
+  const raw = Buffer.from('Read and flag before the second PC starts syncing');
+  const record = a.add(raw);
+  await a.sync.run();
+  record.unread = false; record.starred = true;
+  await a.sync.run();
+  for (let index = 0; index < 10; index++) b.add(Buffer.from(`Initial scan mail ${index}`));
+  b.add(raw);
+  await b.sync.run(); await a.sync.run(); await b.sync.run();
+  for (const peer of [a, b]) {
+    assert.equal(peer.records.get(record.key).unread, false);
+    assert.equal(peer.records.get(record.key).starred, true);
+  }
 });

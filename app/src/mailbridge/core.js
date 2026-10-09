@@ -80,8 +80,10 @@ class ArchiveSync extends EventEmitter {
         // A first capture in server Trash has no authority to relocate a peer's retained Inbox copy.
         old.state[field] ||= { value: record[field], clock: 0, device: this.device };
       } else if (!old.state[field] || old.applied[field] !== record[field]) {
-        if (field === 'folder' && !old.state[field] && record.role === 'sent') ++this.journal.clock;
-        old.state[field] = { value: record[field], clock: ++this.journal.clock, device: this.device };
+        const initialValue = !old.state[field];
+        const clock = ++this.journal.clock;
+        // Initial origin is independent of mailbox enumeration order. Later moves use the logical clock.
+        old.state[field] = { value: record[field], clock: initialValue ? (field === 'folder' ? (record.role === 'sent' ? 2 : 1) : 0) : clock, device: this.device };
       }
       old.applied[field] = record[field];
     }

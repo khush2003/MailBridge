@@ -9,14 +9,20 @@ const path = require('node:path');
   const application = await electron.launch({ executablePath: process.env.MAILBRIDGE_DESKTOP_BINARY || path.join(root, 'MailBridge.exe'),
     args: ['--config-dir-path', config], timeout: 60000 });
   try {
-    const protection = await application.evaluate(({ app, safeStorage }) => {
+    const protection = await application.evaluate(async ({ app, safeStorage }) => {
+      await app.whenReady();
       if (!safeStorage.isEncryptionAvailable()) return { available: false, name: app.getName() };
       const encrypted = safeStorage.encryptString('mailbridge-windows-test');
-      return { available: true, roundtrip: safeStorage.decryptString(encrypted), name: app.getName() };
+      const asyncAvailable = await safeStorage.isAsyncEncryptionAvailable();
+      const asyncEncrypted = asyncAvailable ? await safeStorage.encryptStringAsync('mailbridge-windows-test') : null;
+      const asyncRoundtrip = asyncEncrypted ? (await safeStorage.decryptStringAsync(asyncEncrypted)).result : null;
+      return { available: true, roundtrip: safeStorage.decryptString(encrypted), asyncAvailable, asyncRoundtrip, name: app.getName() };
     });
     if (process.platform === 'win32') {
       assert.equal(protection.available, true, 'Windows credential protection must be available');
       assert.equal(protection.roundtrip, 'mailbridge-windows-test');
+      assert.equal(protection.asyncAvailable, true);
+      assert.equal(protection.asyncRoundtrip, 'mailbridge-windows-test');
     }
     assert.equal(protection.name, 'MailBridge');
     const window = await application.firstWindow();
