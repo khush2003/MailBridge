@@ -27,7 +27,7 @@ Mailbox cleanup is deliberately performed through webmail. The app does not issu
 
 **Drive folder status:** “Shared Drive folder available” checks local access. Drive for desktop performs the cloud upload; the other PC's receipt proves delivery. It does not claim that a local folder write proves a completed Google upload. Direct API mode reports actual API connectivity and account storage quota.
 
-The 15 GB Google allowance is shared with the account's other storage. Permanent cloud archive mode retains all encrypted mail within that allowance. Transfer-buffer mode frees message objects after two-PC receipt, while state and checkpoint records remain. A new/replacement PC in buffer mode needs a copy of an existing PC's local archive to recover older messages. Back up each PC's local archive independently.
+The 15 GB Google allowance is shared with the account's other storage. Permanent cloud archive mode retains all encrypted mail within that allowance. Select transfer-buffer mode on both PCs to free message objects after two-PC receipt, while state and checkpoint records remain. A new/replacement PC in buffer mode needs a copy of an existing PC's local archive to recover older messages. Enabling permanent mode again restores collected message objects from the local archive. Back up each PC's local archive independently.
 
 ## Direct Google sign-in
 

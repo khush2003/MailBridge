@@ -105,6 +105,8 @@ class ArchiveSync extends EventEmitter {
       const known = new Set(objects.map(object => object.name));
       // Tombstones are authenticated before they can suppress uploads or authorize cloud collection.
       for (const object of objects.filter(o => o.name.startsWith(this.name('gc', '')))) {
+        const identity = object.name.slice(this.name('gc', '').length);
+        if (this.journal.deletedCloud[identity]) continue;
         const gc = await this.get(object);
         if (!validId(gc.key) || !validId(gc.digest) || object.name !== this.name('gc', `${gc.key}-${gc.digest}`)) throw new Error('Invalid archive checkpoint');
         this.journal.deletedCloud[`${gc.key}-${gc.digest}`] = true;
@@ -136,7 +138,7 @@ class ArchiveSync extends EventEmitter {
       for (const record of local) {
         const identity = `${record.key}-${record.digest}`;
         const name = this.name('mail', identity);
-        if (known.has(name) || this.journal.deletedCloud[identity]) continue;
+        if (known.has(name) || (!this.cloudRetention && this.journal.deletedCloud[identity])) continue;
         if (uploadedBytes > 0 && uploadedBytes + record.size > this.maxUploadBytes) break;
         if (Math.ceil((uploadedBytes + record.size) * 4 / 3) + 4096 > availableBytes) {
           uploadFailure = new Error('Google Drive storage is nearly full. Free space or enable the transfer buffer after confirming both PCs.');
@@ -152,6 +154,7 @@ class ArchiveSync extends EventEmitter {
           if (error.code !== 'ENOSPC' && !(error.status === 403 && /quota|storage/i.test(error.message))) throw error;
           uploadFailure = error; break;
         }
+        this.journal.seen[name] = true;
         uploadedBytes += size;
         known.add(name);
       }
@@ -161,6 +164,9 @@ class ArchiveSync extends EventEmitter {
         if (receipts[this.device] && !known.has(name) && (known.has(this.name('mail', identity)) || this.journal.deletedCloud[identity])) await this.put(name, { device: this.device, identity });
       }
       for (const object of objects.filter(o => o.name.startsWith(this.name('ack', '')))) {
+        const parts = object.name.slice(this.name('ack', '').length);
+        const device = parts.slice(0, 36), identity = parts.slice(37);
+        if (parts[36] === '-' && this.journal.acknowledgements[identity]?.[device]) continue;
         const receipt = await this.get(object);
         if (!/^[a-f0-9-]{36}$/.test(receipt.device) || !/^[a-f0-9]{64}-[a-f0-9]{64}$/.test(receipt.identity) ||
           object.name !== this.name('ack', `${receipt.device}-${receipt.identity}`)) throw new Error('Invalid device receipt');
@@ -168,18 +174,26 @@ class ArchiveSync extends EventEmitter {
         this.journal.acknowledgements[receipt.identity][receipt.device] = true;
       }
       // Independent snapshots per device avoid two PCs overwriting one another's offline changes.
-      const snapshot = { device: this.device, clock: this.journal.clock, updated: Date.now(), messages: {} };
+      const snapshot = { device: this.device, clock: this.journal.clock, updated: Date.now(), cloudRetention: this.cloudRetention, messages: {} };
       for (const [key, message] of Object.entries(this.journal.messages)) snapshot.messages[key] = message.state;
-      await this.put(this.name('state', this.device), snapshot);
+      const snapshotHash = hash(JSON.stringify({ clock: snapshot.clock, cloudRetention: snapshot.cloudRetention, messages: snapshot.messages }));
+      if (snapshotHash !== this.journal.publishedStateHash || Date.now() - (this.journal.publishedStateAt || 0) >= 60000) {
+        await this.put(this.name('state', this.device), snapshot);
+        this.journal.publishedStateHash = snapshotHash;
+        this.journal.publishedStateAt = Date.now();
+      }
       for (const object of objects.filter(o => o.name.startsWith(this.name('state', '')) && o.name !== this.name('state', this.device))) {
+        const revision = object.md5Checksum || object.revision;
+        if (revision && this.journal.stateRevisions?.[object.name] === revision) continue;
         const incoming = await this.get(object);
         if (!/^[a-f0-9-]{36}$/.test(incoming.device) || object.name !== this.name('state', incoming.device) || !Number.isSafeInteger(incoming.clock)) throw new Error('Invalid device state');
-        this.journal.devices[incoming.device] = { updated: incoming.updated };
+        this.journal.devices[incoming.device] = { updated: incoming.updated, cloudRetention: incoming.cloudRetention !== false };
         this.journal.clock = Math.max(this.journal.clock, incoming.clock);
+        let completeSnapshot = true;
         for (const [key, state] of Object.entries(incoming.messages)) {
           if (!validId(key)) throw new Error('Invalid message state identity');
           const message = this.journal.messages[key];
-          if (!message) continue;
+          if (!message) { completeSnapshot = false; continue; }
           let changed = false;
           for (const field of ['unread', 'starred', 'folder']) {
             const value = state[field];
@@ -192,11 +206,15 @@ class ArchiveSync extends EventEmitter {
             message.applied = applied;
           }
         }
+        if (revision && completeSnapshot) {
+          this.journal.stateRevisions ||= {};
+          this.journal.stateRevisions[object.name] = revision;
+        }
       }
       // Refresh imported descriptors before publishing their changes on the next pass.
       for (const record of await this.native.list()) this.observe(record);
       this.save();
-      if (!this.cloudRetention && this.peers.length === 1) {
+      if (!this.cloudRetention && this.peers.length === 1 && this.journal.devices[this.peers[0]]?.cloudRetention === false) {
         for (const [identity, receipts] of Object.entries(this.journal.acknowledgements)) {
           if (!receipts[this.device] || !receipts[this.peers[0]]) continue;
           const name = this.name('mail', identity);

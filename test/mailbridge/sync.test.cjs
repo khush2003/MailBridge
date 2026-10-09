@@ -202,3 +202,48 @@ test('a large initial archive scan cannot overwrite existing peer read and flag 
     assert.equal(peer.records.get(record.key).starred, true);
   }
 });
+
+test('verified immutable receipts are cached while peer state is still refreshed', async () => {
+  const { a, b, remote } = pair();
+  a.add(Buffer.from('Receipt caching'));
+  await a.sync.run(); await b.sync.run(); await a.sync.run(); await b.sync.run();
+  const fetched = [], original = remote.get.bind(remote);
+  remote.get = async id => { fetched.push(id); return original(id); };
+  b.records.values().next().value.starred = true;
+  await b.sync.run(); await a.sync.run();
+  assert.equal(fetched.some(id => id.includes('-ack-') || id.includes('-mail-')), false);
+  assert.equal(a.records.values().next().value.starred, true);
+});
+
+test('both PCs must select the buffer, and permanent mode restores collected cloud copies', async () => {
+  const { a, b, remote } = pair(false);
+  b.sync.cloudRetention = true;
+  a.add(Buffer.from('Retention policy changes'));
+  await a.sync.run(); await b.sync.run(); await a.sync.run();
+  assert.equal([...remote.objects.keys()].filter(n => n.includes('-mail-')).length, 1);
+  b.sync.cloudRetention = false;
+  await b.sync.run(); await a.sync.run();
+  assert.equal([...remote.objects.keys()].filter(n => n.includes('-mail-')).length, 0);
+  a.sync.cloudRetention = true;
+  await a.sync.run(); await a.sync.run();
+  assert.equal([...remote.objects.keys()].filter(n => n.includes('-mail-')).length, 1);
+  await b.sync.run();
+  assert.equal([...remote.objects.keys()].filter(n => n.includes('-mail-')).length, 1);
+});
+
+test('unchanged large snapshots avoid transfers but edits invalidate the revision cache', async () => {
+  const { a, b, remote } = pair();
+  const originalList = remote.list.bind(remote);
+  remote.list = async prefix => (await originalList(prefix)).map(o => ({ ...o, md5Checksum: hash(remote.objects.get(o.id)) }));
+  a.add(Buffer.from('Snapshot revision cache'));
+  await a.sync.run(); await b.sync.run(); await a.sync.run(); await b.sync.run(); await a.sync.run();
+  const fetched = [], uploaded = [], get = remote.get.bind(remote), put = remote.put.bind(remote);
+  remote.get = async id => { fetched.push(id); return get(id); };
+  remote.put = async (name, data) => { uploaded.push(name); return put(name, data); };
+  await a.sync.run(); await b.sync.run();
+  assert.deepEqual(fetched, []); assert.deepEqual(uploaded, []);
+  b.records.values().next().value.unread = false;
+  await b.sync.run(); await a.sync.run();
+  assert.equal(a.records.values().next().value.unread, false);
+  assert.equal(fetched.filter(id => id.includes('-state-')).length, 1);
+});

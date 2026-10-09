@@ -23,6 +23,12 @@ const path = require('node:path');
       assert.equal(protection.roundtrip, 'mailbridge-windows-test');
       assert.equal(protection.asyncAvailable, true);
       assert.equal(protection.asyncRoundtrip, 'mailbridge-windows-test');
+      const startup = await application.evaluate(({ app }) => {
+        app.setLoginItemSettings({ openAtLogin: true, path: process.execPath });
+        return app.getLoginItemSettings({ path: process.execPath }).openAtLogin;
+      });
+      assert.equal(startup, true, 'Windows startup registration must work');
+      await application.evaluate(({ app }) => app.setLoginItemSettings({ openAtLogin: false, path: process.execPath }));
     }
     assert.equal(protection.name, 'MailBridge');
     const window = await application.firstWindow();
@@ -30,5 +36,8 @@ const path = require('node:path');
     await window.getByText('IMAP / SMTP', { exact: true }).click();
     await window.getByText('IMAP', { exact: false }).first().waitFor();
     fs.writeFileSync('app/dist/mailbridge-smoke.log', 'Packaged application launched and account setup opened successfully.\n');
-  } finally { await application.close(); }
+  } finally {
+    if (process.platform === 'win32') await application.evaluate(({ app }) => app.setLoginItemSettings({ openAtLogin: false, path: process.execPath })).catch(() => {});
+    await application.close();
+  }
 })().catch(error => { console.error(error); process.exit(1); });

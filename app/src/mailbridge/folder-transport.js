@@ -18,7 +18,11 @@ class FolderTransport {
   async list(prefix) {
     await this.health();
     return fs.readdirSync(this.root).filter(id => id.startsWith(prefix) && id.endsWith('.mb') && /^[a-z0-9-]{1,240}\.mb$/.test(id))
-      .map(id => ({ name: id.slice(0, -3), id }));
+      .map(id => {
+        const stat = fs.lstatSync(this.file(id));
+        if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('Invalid shared archive file');
+        return { name: id.slice(0, -3), id, revision: `${stat.mtimeMs}:${stat.ctimeMs}:${stat.size}` };
+      });
   }
   async get(id) {
     const file = this.file(id);
