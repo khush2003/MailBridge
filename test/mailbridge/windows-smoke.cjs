@@ -8,6 +8,15 @@ const path = require('node:path');
   const config = fs.mkdtempSync(path.join(os.tmpdir(), 'mailbridge-smoke-'));
   const application = await electron.launch({ executablePath: process.env.MAILBRIDGE_DESKTOP_BINARY || path.join(root, 'MailBridge.exe'),
     args: ['--config-dir-path', config], timeout: 60000 });
+  const diagnostics = [];
+  const attach = page => {
+    page.on('pageerror', error => diagnostics.push(`PAGE ERROR: ${error.stack}`));
+    page.on('console', message => { if (message.type() === 'error') diagnostics.push(`CONSOLE: ${message.text()}`); });
+    page.on('crash', () => diagnostics.push(`RENDERER CRASH: ${page.url()}`));
+  };
+  application.on('window', attach);
+  for (const page of application.windows()) attach(page);
+  application.process().stderr.on('data', data => diagnostics.push(`STDERR: ${data.toString()}`));
   try {
     const protection = await application.evaluate(async ({ app, safeStorage }) => {
       await app.whenReady();
@@ -47,7 +56,7 @@ const path = require('node:path');
   } catch (error) {
     const windows = [];
     for (const page of application.windows()) windows.push({ url: page.url(), body: await page.locator('body').innerText().catch(() => '') });
-    fs.writeFileSync('app/dist/mailbridge-smoke.log', `${error.stack}\n${JSON.stringify(windows, null, 2)}\n`);
+    fs.writeFileSync('app/dist/mailbridge-smoke.log', `${error.stack}\n${diagnostics.join("\n")}\n${JSON.stringify(windows, null, 2)}\n`);
     throw error;
   } finally {
     if (process.platform === 'win32') await application.evaluate(({ app }) => app.setLoginItemSettings({ openAtLogin: false, path: process.execPath })).catch(() => {});

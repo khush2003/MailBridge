@@ -39,10 +39,25 @@ jobs:
         with:
           path: mailsync/vcpkg_installed
           key: mailbridge-native-x86-${{ hashFiles('mailsync/vcpkg.json', 'mailsync/vcpkg-configuration.json', 'mailsync/vcpkg-overlay-ports/**') }}
+      - name: Identify native source
+        id: engine-source
+        shell: pwsh
+        run: '"commit=$(git -C mailsync rev-parse HEAD)" >> $env:GITHUB_OUTPUT'
+      - uses: actions/cache/restore@v4
+        id: engine-cache
+        with:
+          path: mailsync/Windows/Release
+          key: mailbridge-engine-win2022-${{ steps.engine-source.outputs.commit }}-v1
       - name: Build modified native engine
+        if: steps.engine-cache.outputs.cache-hit != 'true'
         shell: cmd
         working-directory: mailsync/Windows
         run: msbuild mailsync.sln /m /p:Configuration=Release /p:Platform=Win32 /p:VcpkgEnableManifest=true
+      - uses: actions/cache/save@v4
+        if: steps.engine-cache.outputs.cache-hit != 'true'
+        with:
+          path: mailsync/Windows/Release
+          key: mailbridge-engine-win2022-${{ steps.engine-source.outputs.commit }}-v1
       - name: Stage engine and authentication dependencies
         shell: pwsh
         run: |
@@ -99,6 +114,11 @@ jobs:
           MAILBRIDGE_PFX_BASE64: ${{ secrets.MAILBRIDGE_PFX_BASE64 }}
           MAILBRIDGE_PFX_PASSWORD: ${{ secrets.MAILBRIDGE_PFX_PASSWORD }}
         run: pwsh app/build/mailbridge/sign.ps1 -Directory app/dist/mailbridge-installer
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MailBridge-review-installer-${{ github.sha }}
+          path: app/dist/mailbridge-installer/*.exe
+          if-no-files-found: error
       - name: Verify installer and uninstaller
         shell: pwsh
         run: |
