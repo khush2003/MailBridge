@@ -11,7 +11,7 @@ export default class ArchivePreferences extends React.Component<{}, any> {
   componentWillUnmount() { clearInterval(this.timer); }
   perform = async (action: () => Promise<any>, success = '') => {
     this.setState({ busy: true, message: '' });
-    try { await action(); this.setState({ message: success, config: MailBridge.settings(), pairing: '', clientSecret: '' }); }
+    try { const result = await action(); this.setState({ ...(success && result !== false ? { message: success } : {}), config: MailBridge.settings(), pairing: '', clientSecret: '' }); }
     catch (error) { this.setState({ message: error.message }); }
     finally { this.setState({ busy: false }); }
   };

@@ -76,7 +76,11 @@ class ArchiveSync extends EventEmitter {
     const old = this.journal.messages[key] || { descriptor: { key, digest, email, folder, role: record.role || '', size, schema: 1 }, state: {}, applied: {} };
     for (const field of ['unread', 'starred', 'folder']) {
       if (field === 'folder' ? typeof record[field] !== 'string' || !record[field] : typeof record[field] !== 'boolean') throw new Error('Invalid native mail state');
-      if (!old.state[field] || old.applied[field] !== record[field]) {
+      if (field === 'folder' && ['trash', 'spam'].includes(record.role)) {
+        // A first capture in server Trash has no authority to relocate a peer's retained Inbox copy.
+        old.state[field] ||= { value: record[field], clock: 0, device: this.device };
+      } else if (!old.state[field] || old.applied[field] !== record[field]) {
+        if (field === 'folder' && !old.state[field] && record.role === 'sent') ++this.journal.clock;
         old.state[field] = { value: record[field], clock: ++this.journal.clock, device: this.device };
       }
       old.applied[field] = record[field];

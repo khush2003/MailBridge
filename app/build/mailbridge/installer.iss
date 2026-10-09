@@ -26,8 +26,8 @@ LicenseFile=..\..\..\LICENSE.md
 [Files]
 Source: "{#BuildDirectory}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 [Icons]
-Name: "{group}\MailBridge"; Filename: "{app}\MailBridge.exe"
-Name: "{autodesktop}\MailBridge"; Filename: "{app}\MailBridge.exe"; Tasks: desktopicon
+Name: "{group}\MailBridge"; Filename: "{app}\MailBridge.exe"; AppUserModelID: "io.github.khush2003.mailbridge"
+Name: "{autodesktop}\MailBridge"; Filename: "{app}\MailBridge.exe"; Tasks: desktopicon; AppUserModelID: "io.github.khush2003.mailbridge"
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
 [Run]

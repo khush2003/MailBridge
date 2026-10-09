@@ -165,3 +165,23 @@ test('bounded upload batches make progress and a full Drive does not prevent con
   await a.sync.run(); await b.sync.run(); await a.sync.run();
   assert.equal(b.records.size, 2);
 });
+
+test('a PC first encountering mail in server Trash cannot relocate an existing retained Inbox copy', async () => {
+  const { a, b } = pair();
+  const raw = Buffer.from('Retain original Inbox even when another PC first sees server Trash');
+  const record = a.add(raw);
+  const second = b.add(raw); second.folder = 'Trash'; second.role = 'trash';
+  await b.sync.run(); await a.sync.run(); await b.sync.run(); await a.sync.run();
+  assert.equal(a.records.get(record.key).folder, 'INBOX');
+  assert.equal(b.records.get(record.key).folder, 'INBOX');
+});
+
+test('a freshly captured self-addressed Inbox copy does not override the sender\'s Sent archive', async () => {
+  const { a, b } = pair();
+  const raw = Buffer.from('Self-addressed outgoing mail');
+  const record = a.add(raw); record.folder = 'Sent'; record.role = 'sent';
+  b.add(raw);
+  await b.sync.run(); await a.sync.run(); await b.sync.run(); await a.sync.run();
+  assert.equal(a.records.get(record.key).folder, 'Sent');
+  assert.equal(b.records.get(record.key).folder, 'Sent');
+});

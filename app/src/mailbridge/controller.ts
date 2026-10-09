@@ -88,7 +88,7 @@ class MailBridgeController extends EventEmitter {
   }
   async connectFolder() {
     const result = await dialog.showOpenDialog({ title: 'Choose the shared Google Drive folder', properties: ['openDirectory', 'createDirectory'] });
-    if (result.canceled || !result.filePaths[0]) return;
+    if (result.canceled || !result.filePaths[0]) return false;
     const selected = fs.realpathSync(result.filePaths[0]);
     const local = path.resolve(this.root);
     if (local === selected || local.startsWith(selected + path.sep) || selected.startsWith(local + path.sep)) {
@@ -120,7 +120,7 @@ class MailBridgeController extends EventEmitter {
     this.publicStatus = { ...this.publicStatus, ...values, ...this.retentionStats, device: this.settings().device, heartbeat: Date.now() };
     const config = this.settings();
     this.publicStatus.safeToClear = ['connected', 'folder-ready'].includes(this.publicStatus.phase) &&
-      !this.publicStatus.error && !this.publicStatus.running && config.peers.length === 1 &&
+      !this.importing && !this.publicStatus.error && !this.publicStatus.running && config.peers.length === 1 &&
       this.publicStatus.mailSyncInitialized && this.publicStatus.unretained === 0 && !this.publicStatus.mailSyncBusy && this.publicStatus.pending === 0 &&
       this.publicStatus.retained > 0 && AccountStore.accounts().every(account => account.syncState === 'ok');
     durableWrite(path.join(this.root, 'status.json'), JSON.stringify(this.publicStatus));
