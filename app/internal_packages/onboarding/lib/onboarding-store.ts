@@ -65,7 +65,7 @@ class OnboardingStore extends MailspringStore {
       this._pageStack = ['authenticate'];
     } else {
       // Standard new user onboarding flow.
-      this._pageStack = ['welcome'];
+      this._pageStack = ['account-choose'];
     }
   }
 

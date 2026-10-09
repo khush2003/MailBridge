@@ -1,0 +1,54 @@
+# MailBridge
+
+An Office-style Windows mail client forked from Mailspring, with permanent local mail and encrypted synchronization between two PCs. Windows 10/11 x64 is the target. The complete native mail engine is forked too; releases must compile it from the pinned `mailsync` submodule rather than substitute an upstream binary.
+
+## What it does
+
+- Connects directly to company IMAP/SMTP, using the existing mature composer, attachments, threading, search, folders, and account setup.
+- Captures complete incoming mail of every age and successful outgoing SMTP submissions as durable `.eml` files, including attachments.
+- Keeps independent retained placements. Server expunge and folder removal never remove these placements. The normal Inbox/Sent views include retained copies.
+- Rebuilds a lost mail cache from the local archive, including locally saved read/flag/folder state.
+- Encrypts transport objects with AES-256-GCM and a workspace pairing key protected by the OS credential store.
+- Uses either a shared Google Drive for desktop folder or direct Google Drive API access. Direct access uses desktop OAuth with PKCE, token refresh, app-private storage, verified uploads, and quota reporting.
+- Synchronizes sent mail, read/unread flags, stars, and archive folder placement. Independent device snapshots merge each field by a logical clock with deterministic ties.
+- Confirms delivery only after the second PC durably stores and imports a checksum-verified complete message. A local upload or folder write is never proof that the other PC has it.
+- Can collect encrypted cloud message objects after both explicitly confirmed PCs acknowledge them. Permanent local copies remain. Cloud checkpoints prevent deleted transfer objects from being uploaded repeatedly.
+- Provides an archive/status settings page, tray support, and opt-in Windows startup. It does not receive upstream Mailspring application updates or transmit crash reports to upstream services.
+
+## Set up two PCs
+
+1. Install MailBridge and add the company account as IMAP/SMTP on each PC.
+2. In **Archive & sync**, choose the same shared folder in Google Drive for desktop on both PCs. Keep this separate from the app's private local archive. Alternatively connect directly using the same Google account on both PCs.
+3. On the first PC, create an archive and copy its pairing code. On the second PC, join using that code. It contains your encryption key: keep it private and save a recovery copy securely.
+4. Leave both apps and Drive for desktop running. Confirm the other PC's displayed device ID on each PC. Monitor the pending count.
+5. Before clearing old mail in webmail, wait for the native mailbox download to finish, the unretained count to reach zero, and the pending count to reach zero. Retained mail remains in the normal Inbox/Sent views.
+
+Mailbox cleanup is deliberately performed through webmail. The app does not issue unattended server deletes. Messages removed before either PC captures their full MIME content cannot be recovered.
+
+**Drive folder status:** “Shared Drive folder available” checks local access. Drive for desktop performs the cloud upload; the other PC's receipt proves delivery. It does not claim that a local folder write proves a completed Google upload. Direct API mode reports actual API connectivity and account storage quota.
+
+The 15 GB Google allowance is shared with the account's other storage. Permanent cloud archive mode retains all encrypted mail within that allowance. Transfer-buffer mode frees message objects after two-PC receipt, while state and checkpoint records remain. A new/replacement PC in buffer mode needs a copy of an existing PC's local archive to recover older messages. Back up each PC's local archive independently.
+
+## Direct Google sign-in
+
+Folder mode requires no Google developer credentials. For direct sign-in, the distributor supplies a Google **Desktop app** OAuth client with Drive API enabled. Fill `app/mailbridge-oauth.json` before packaging, or use **Developer connection settings** in the app. Both PCs must use credentials from the same Google application. Only `drive.appdata` is requested. Access/refresh tokens and archive keys are encrypted by Electron safeStorage; Linux development requires a usable desktop keyring. End users sign in in their own browser.
+
+## Build and verify
+
+```sh
+git clone --recurse-submodules https://github.com/khush2003/MailBridge.git
+cd MailBridge
+npm ci
+npm run typecheck
+node --test test/mailbridge/*.test.cjs
+```
+
+The **MailBridge Windows** workflow builds the modified native engine with MSBuild/vcpkg, runs the real native integration tests on Windows, packages the desktop client, opens the packaged app for a smoke test, and generates `MailBridge-Setup-0.1.0.exe` with Inno Setup. Review builds are unsigned. Production signing is opt-in: set repository variable `MAILBRIDGE_SIGNED_BUILDS=true` and secrets `MAILBRIDGE_PFX_BASE64` and `MAILBRIDGE_PFX_PASSWORD` for your Authenticode certificate. Signing covers executable/DLL/native-module files and the installer. Build information and SHA-256 hashes accompany the artifact. No executable packing/obfuscation or antivirus evasion is used. A signature helps establish publisher identity; it cannot guarantee every antivirus or Windows reputation result.
+
+For Linux development, build libetpan with a local prefix, then MailCore and mailsync with that prefix in their include/library search paths. Copy the resulting `mailsync` to `app/mailsync`. See `mailsync/BUILDING.md`. `npm start` runs the source app; `npm run build -- --skip-installers` produces a standalone Linux directory for verification.
+
+## Storage and recovery
+
+The private configuration directory is `%APPDATA%/MailBridge` on Windows. Its `mailbridge/blobs` directory contains complete plaintext `.eml` messages, `records` immutable descriptors, and `state` native state snapshots. These stay on the PC. Only authenticated encrypted objects enter the shared Drive folder. `settings.json` stores encrypted credentials, and `sync-journal.json` stores clocks and receipts. Cache reset deletes the IMAP cache, not this permanent archive. Copy the entire private configuration directory for a complete device backup; recovery on another Windows user requires pairing again because OS-protected credentials are user-bound.
+
+The fork's source remains GPL-3.0, with the upstream Mailspring/Mailspring-Sync notices preserved. MailBridge is independent of Microsoft and the upstream Mailspring service.

@@ -130,11 +130,18 @@ class FocusedPerspectiveStore extends MailspringStore {
   }
 
   // Inbound Events
+  _retainedCategoryFingerprint = '';
   _onCategoryStoreChanged = () => {
+    const retained = CategoryStore.categories().filter(category => category['mailbridgeLocal']);
+    const fingerprint = retained.map(category => category.id).sort().join(',');
+    const retainedChanged = fingerprint !== this._retainedCategoryFingerprint;
+    this._retainedCategoryFingerprint = fingerprint;
     if (!this._initialized) {
       this._initializeFromSavedState();
     } else if (!this._isValidPerspective(this._current)) {
       this._setPerspective(this._defaultPerspective(this._current.accountIds));
+    } else if (retainedChanged) {
+      this.trigger();
     }
   };
 

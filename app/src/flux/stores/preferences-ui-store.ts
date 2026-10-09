@@ -104,7 +104,7 @@ class _PreferencesUIStore extends MailspringStore {
   */
   registerPreferencesTab = (tabItem: PreferencesUIStoreTab) => {
     this._tabs.push(tabItem);
-    this._tabs.sort((a, b) => (a.order > b.order) as any);
+    this._tabs.sort((a, b) => a.order - b.order);
     if (tabItem.tabId === MAIN_TAB_ITEM_ID) {
       this._selection.tabId = tabItem.tabId;
     }

@@ -108,7 +108,7 @@ class KeymapFile {
   load = () => {
     let keymaps = null;
     try {
-      keymaps = JSON.parse(fs.readFileSync(this._path).toString());
+      keymaps = JSON.parse(fs.readFileSync(this._path).toString().trim() || '{}');
     } catch (e) {
       if (e.code === 'ENOENT') {
         return;

@@ -213,7 +213,7 @@ function buildPackagerOptions() {
       win32: path.resolve(appDir, 'build', 'resources', 'win', 'mailspring-square.ico'),
       linux: undefined,
     }[platform],
-    name: { darwin: 'Mailspring', win32: 'Mailspring', linux: 'mailspring' }[platform],
+    name: { darwin: 'MailBridge', win32: 'MailBridge', linux: 'mailbridge' }[platform],
     appCopyright: `Copyright (C) 2014-${new Date().getFullYear()} Foundry 376, LLC. All rights reserved.`,
     derefSymlinks: false,
     asar: {
@@ -323,10 +323,10 @@ function buildPackagerOptions() {
         }
       : undefined,
     win32metadata: {
-      CompanyName: 'Foundry 376, LLC',
-      FileDescription: 'Mailspring',
+      CompanyName: 'MailBridge contributors',
+      FileDescription: 'MailBridge',
       LegalCopyright: `Copyright (C) 2014-${new Date().getFullYear()} Foundry 376, LLC. All rights reserved.`,
-      ProductName: 'Mailspring',
+      ProductName: 'MailBridge',
     },
     // NOTE: The following plist keys can NOT be set in the extra.plist since
     // they are manually overridden by electron-packager based on this config:
@@ -337,7 +337,7 @@ function buildPackagerOptions() {
       platform === 'darwin'
         ? [path.resolve(appDir, 'build', 'resources', 'mac', 'new-mail.mp3')]
         : undefined,
-    appBundleId: 'com.mailspring.mailspring',
+    appBundleId: 'io.github.khush2003.mailbridge',
     afterCopy: [
       runCopyPlatformSpecificResources,
       runWriteCommitHashIntoPackage,

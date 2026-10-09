@@ -391,9 +391,21 @@ class CategoryMailboxPerspective extends MailboxPerspective {
     );
   }
 
+  retainedCategories(): Category[] {
+    const all = [...this._categories];
+    for (const category of this._categories) {
+      if (category['mailbridgeLocal']) continue;
+      for (const retained of CategoryStore.categories(category.accountId)) {
+        if (retained['mailbridgeLocal'] && retained['mailbridgeSource'] === category.path) all.push(retained);
+      }
+    }
+    return all.filter((category, index) => all.findIndex(c => c.id === category.id) === index);
+  }
+
   threads(): QuerySubscription<Thread> {
+    const represented = this.retainedCategories();
     const query = DatabaseStore.findAll<Thread>(Thread)
-      .where([Thread.attributes.categories.containsAny(this.categories().map((c) => c.id))])
+      .where([Thread.attributes.categories.containsAny(represented.map((c) => c.id))])
       .limit(0);
 
     if (this.isSent()) {
@@ -404,7 +416,7 @@ class CategoryMailboxPerspective extends MailboxPerspective {
       query.where({ inAllMail: true });
     }
 
-    if (this._categories.length > 1 && this.accountIds.length < this._categories.length) {
+    if (represented.length > 1 && this.accountIds.length < represented.length) {
       // The user has multiple categories in the same account selected, which
       // means our result set could contain multiple copies of the same threads
       // (since we do an inner join) and we need SELECT DISTINCT. Note that this
@@ -595,7 +607,7 @@ class UnreadMailboxPerspective extends CategoryMailboxPerspective {
   iconName = 'unread.png';
 
   threads(): QuerySubscription<Thread> {
-    return new UnreadQuerySubscription(this.categories().map((c) => c.id));
+    return new UnreadQuerySubscription(this.retainedCategories().map((c) => c.id));
   }
 
   unreadCount() {

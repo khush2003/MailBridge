@@ -99,6 +99,8 @@ export class Category extends Model {
   static attributes = {
     ...Model.attributes,
 
+    mailbridgeLocal: Attributes.Boolean({ modelKey: 'mailbridgeLocal' }),
+    mailbridgeSource: Attributes.String({ modelKey: 'mailbridgeSource' }),
     role: Attributes.String({
       queryable: true,
       modelKey: 'role',

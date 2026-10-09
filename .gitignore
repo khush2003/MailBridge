@@ -80,3 +80,5 @@ client_secret.json
 /test-results
 /playwright-report
 /playwright/test-results/
+.venv/
+/mailbridge-artifacts/

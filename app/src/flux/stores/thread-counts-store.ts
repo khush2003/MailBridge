@@ -28,7 +28,20 @@ class ThreadCountsStore extends MailspringStore {
   }
 
   _onCountsChanged = () => {
-    DatabaseStore._query('SELECT * FROM `ThreadCounts`').then((results: ThreadCountRow[]) => {
+    Promise.all([
+      DatabaseStore._query('SELECT * FROM `ThreadCounts`'),
+      DatabaseStore._query(`SELECT parent.id AS categoryId, COUNT(DISTINCT tc.id) AS total,
+        COUNT(DISTINCT CASE WHEN tc.unread > 0 THEN tc.id END) AS unread
+        FROM Folder parent JOIN Folder child ON child.accountId = parent.accountId AND
+          (child.id = parent.id OR (json_extract(child.data, '$.mailbridgeLocal') = 1 AND
+            json_extract(child.data, '$.mailbridgeSource') = parent.path))
+        JOIN ThreadCategory tc ON tc.value = child.id
+        WHERE json_extract(parent.data, '$.mailbridgeLocal') IS NOT 1
+        GROUP BY parent.id`),
+    ]).then(([base, represented]) => {
+      const results: ThreadCountRow[] = [...base, ...represented].map(row => ({
+        categoryId: String(row.categoryId), unread: Number(row.unread), total: Number(row.total),
+      }));
       const nextCounts = {};
       for (const { categoryId, unread, total } of results) {
         nextCounts[categoryId] = { unread, total };

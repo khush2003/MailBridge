@@ -35,10 +35,7 @@ export default class AutoUpdateManager extends EventEmitter {
     this.specMode = specMode;
     this.preferredChannel = preferredChannel;
 
-    this.updateFeedURL();
-    this.config.onDidChange('identity.id', this.updateFeedURL);
-
-    setTimeout(() => this.setupAutoUpdater(), 0);
+    this.state = UnsupportedState;
   }
 
   updateFeedURL = () => {
@@ -163,6 +160,7 @@ export default class AutoUpdateManager extends EventEmitter {
   }
 
   check({ hidePopups }: { hidePopups?: boolean } = {}) {
+    if (!autoUpdater) return;
     this.updateFeedURL();
     if (!hidePopups) {
       autoUpdater.once('update-not-available', this.onUpdateNotAvailable);
@@ -172,6 +170,7 @@ export default class AutoUpdateManager extends EventEmitter {
   }
 
   install() {
+    if (!autoUpdater) return;
     autoUpdater.quitAndInstall();
   }
 

@@ -33,19 +33,14 @@ module.exports = ErrorLogger = (function () {
     this.inDevMode = args.inDevMode;
     this.resourcePath = args.resourcePath;
 
-    this._startCrashReporter();
+    // Crash data remains local in this fork.
+
 
     this._extendErrorObject();
 
     this._extendNativeConsole();
 
-    this.extensions = [
-      new SentryErrorReporter({
-        inSpecMode: args.inSpecMode,
-        inDevMode: args.inDevMode,
-        resourcePath: args.resourcePath,
-      }),
-    ];
+    this.extensions = [];
 
     if (this.inSpecMode) {
       return;

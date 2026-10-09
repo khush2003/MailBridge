@@ -1,0 +1,112 @@
+name: MailBridge Windows
+on:
+  push:
+    branches: [mailbridge]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 120
+    env:
+      VCPKG_DEFAULT_TRIPLET: x86-windows
+      VCPKG_DEFAULT_HOST_TRIPLET: x86-windows
+      VCPKG_OVERLAY_PORTS: ${{ github.workspace }}/mailsync/vcpkg-overlay-ports
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: microsoft/setup-msbuild@v2
+      - uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: '84bab45d415d22042bd0b9081aea57f362da3f35'
+          runVcpkgInstall: false
+          doNotCache: true
+      - name: Enable native dependency integration
+        run: vcpkg integrate install
+      - uses: actions/cache/restore@v4
+        with:
+          path: mailsync/vcpkg_installed
+          key: mailbridge-native-x86-${{ hashFiles('mailsync/vcpkg.json', 'mailsync/vcpkg-configuration.json', 'mailsync/vcpkg-overlay-ports/**') }}
+      - name: Build modified native engine
+        shell: cmd
+        working-directory: mailsync/Windows
+        run: msbuild mailsync.sln /m /p:Configuration=Release /p:Platform=Win32 /p:VcpkgEnableManifest=true
+      - name: Stage engine and authentication dependencies
+        shell: pwsh
+        run: |
+          Copy-Item mailsync/Windows/Release/mailsync.exe app/mailsync.exe
+          Copy-Item mailsync/Windows/Release/*.dll app/ -Force
+          $plugins = Get-ChildItem mailsync/vcpkg_installed -Recurse -Filter 'sasl*.dll' | Where-Object { $_.FullName -notmatch '\\debug\\' }
+          if (!$plugins) { throw 'SMTP authentication plugins are missing' }
+          $plugins | Copy-Item -Destination app/ -Force
+          if (Test-Path app/zlib1.dll) { Copy-Item app/zlib1.dll app/zlib.dll -Force }
+          foreach ($name in @('msvcr100.dll','msvcr120.dll','msvcp100.dll','msvcp120.dll','msvcp140.dll','vcruntime140.dll')) {
+            $source = "C:\Windows\SysWOW64\$name"
+            if (Test-Path $source) { Copy-Item $source app/ -Force }
+          }
+      - uses: actions/cache/save@v4
+        with:
+          path: mailsync/vcpkg_installed
+          key: mailbridge-native-x86-${{ hashFiles('mailsync/vcpkg.json', 'mailsync/vcpkg-configuration.json', 'mailsync/vcpkg-overlay-ports/**') }}
+      - name: Verify native retention on Windows
+        shell: pwsh
+        run: |
+          python -m pip install -r mailsync/test/requirements.txt
+          $env:MAILSYNC_BIN = (Resolve-Path app/mailsync.exe).Path
+          python -m pytest mailsync/test/test_mailbridge.py --servers fake -n 0 -q
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Install desktop dependencies
+        run: npm ci
+      - name: Verify sync and type checking
+        run: |
+          node --test test/mailbridge/*.test.cjs
+          npm run typecheck
+      - name: Build standalone desktop client
+        run: npm run build -- --skip-installers
+      - name: Verify packaged desktop
+        run: node test/mailbridge/windows-smoke.cjs
+      - name: Sign application when a certificate is configured
+        if: vars.MAILBRIDGE_SIGNED_BUILDS == 'true'
+        env:
+          MAILBRIDGE_PFX_BASE64: ${{ secrets.MAILBRIDGE_PFX_BASE64 }}
+          MAILBRIDGE_PFX_PASSWORD: ${{ secrets.MAILBRIDGE_PFX_PASSWORD }}
+        run: pwsh app/build/mailbridge/sign.ps1 -Directory app/dist/MailBridge-win32-x64
+      - name: Create Windows installer
+        shell: pwsh
+        run: |
+          $compiler = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+          if (!(Test-Path $compiler)) { choco install innosetup -y --no-progress }
+          & $compiler '/DBuildDirectory=..\..\dist\MailBridge-win32-x64' app/build/mailbridge/installer.iss
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Sign installer when a certificate is configured
+        if: vars.MAILBRIDGE_SIGNED_BUILDS == 'true'
+        env:
+          MAILBRIDGE_PFX_BASE64: ${{ secrets.MAILBRIDGE_PFX_BASE64 }}
+          MAILBRIDGE_PFX_PASSWORD: ${{ secrets.MAILBRIDGE_PFX_PASSWORD }}
+        run: pwsh app/build/mailbridge/sign.ps1 -Directory app/dist/mailbridge-installer
+      - name: Export build information
+        shell: pwsh
+        run: |
+          @{'commit' = '${{ github.sha }}'; 'engine' = (git -C mailsync rev-parse HEAD); 'signed' = ((Get-AuthenticodeSignature (Get-ChildItem app/dist/mailbridge-installer/*.exe | Select-Object -First 1).FullName).Status -eq 'Valid'); 'target' = 'Windows 10/11 x64'} | ConvertTo-Json | Out-File app/dist/mailbridge-installer/build-info.json
+          Get-FileHash app/dist/mailbridge-installer/*.exe -Algorithm SHA256 | Format-List | Out-File app/dist/mailbridge-installer/SHA256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MailBridge-Windows-${{ github.sha }}
+          path: app/dist/mailbridge-installer/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: MailBridge-failure-logs
+          path: |
+            mailsync/test/runs/
+            app/dist/mailbridge-smoke.log
+          if-no-files-found: ignore

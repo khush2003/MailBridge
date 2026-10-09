@@ -1,14 +1,14 @@
 {
-  "name": "mailspring",
-  "productName": "Mailspring",
-  "desktopName": "Mailspring.desktop",
-  "version": "1.26.0",
+  "name": "mailbridge",
+  "productName": "MailBridge",
+  "desktopName": "mailbridge.desktop",
+  "version": "0.1.0",
   "repository": {
     "type": "git",
-    "url": "git://github.com/foundry376/mailspring.git"
+    "url": "https://github.com/khush2003/MailBridge.git"
   },
   "commitHash": "COMMIT_INSERTED_DURING_PACKAGING",
-  "description": "The best email app for people and teams at work",
+  "description": "Complete local mail with encrypted two-PC archive sync",
   "license": "GPL-3.0",
   "main": "./src/browser/main.js",
   "dependencies": {

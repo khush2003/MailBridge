@@ -1,3 +1,13 @@
+# MailBridge
+
+Windows mail with an Office-style workspace, complete permanent local mail, and encrypted two-PC sync through Google Drive. This is a full Mailspring client and native engine fork.
+
+See [MailBridge setup, architecture, builds, and verification](MAILBRIDGE.md). The **MailBridge Windows** GitHub Actions workflow produces the Windows installer from this fork's modified engine.
+
+The upstream project documentation and attribution remain below.
+
+---
+
 # 💌 Mailspring
 
 **Mailspring is a new version of Nylas Mail maintained by one of the original authors. It's faster, leaner, and shipping today!** It replaces the JavaScript sync code in Nylas Mail with a new C++ sync engine based on [Mailcore2](https://github.com/MailCore/mailcore2). It uses roughly half the RAM and CPU of Nylas Mail and idles with almost zero "CPU Wakes", which translates to great battery life. It also has an entirely revamped composer and other great new features.

@@ -1,4 +1,6 @@
 import path from 'path';
+import crypto from 'crypto';
+import MailBridge from '../mailbridge/controller';
 import fs from 'fs';
 import { ipcRenderer } from 'electron';
 import { localized } from '../intl';
@@ -138,6 +140,18 @@ export default class MailsyncBridge {
 
     process.nextTick(() => {
       this.ensureClients();
+      MailBridge.start(this);
+    });
+  }
+
+  _mailbridgeRequests = new Map<string, { resolve: (result: any) => void; reject: (error: Error) => void; timeout: any }>();
+
+  mailbridgeRequest(accountId: string, packet: any): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const id = crypto.randomUUID();
+      const timeout = setTimeout(() => { this._mailbridgeRequests.delete(id); reject(new Error('Archive engine request timed out')); }, 90000);
+      this._mailbridgeRequests.set(id, { resolve, reject, timeout });
+      this.sendMessageToAccount(accountId, { ...packet, type: 'mailbridge', id });
     });
   }
 
@@ -459,6 +473,18 @@ export default class MailsyncBridge {
       const { type, modelJSONs, modelClass } = json;
       if (!modelJSONs || !type || !modelClass) {
         console.log(`Sync worker sent a JSON formatted message with unexpected keys: ${msg}`);
+        continue;
+      }
+
+      if (modelClass === 'MailBridgeResult') {
+        for (const result of modelJSONs) {
+          const pending = this._mailbridgeRequests.get(result.id);
+          if (!pending) continue;
+          clearTimeout(pending.timeout);
+          this._mailbridgeRequests.delete(result.id);
+          if (result.error) pending.reject(new Error(result.error));
+          else pending.resolve(result.result);
+        }
         continue;
       }
 

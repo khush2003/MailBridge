@@ -41,12 +41,12 @@ if (typeof process.setFdLimit === 'function') {
 }
 
 const setupConfigDir = args => {
-  let dirname = 'Mailspring';
+  let dirname = 'MailBridge';
   if (args.devMode) {
-    dirname = 'Mailspring-dev';
+    dirname = 'MailBridge-dev';
   }
   if (args.specMode) {
-    dirname = 'Mailspring-spec';
+    dirname = 'MailBridge-spec';
   }
 
   // Check if a custom config dir was provided via --config-dir-path
@@ -281,7 +281,7 @@ const start = () => {
     // into the Start Menu shortcut. Without this, action/reply notification
     // events are silently dropped (COM server is never registered).
     app.setToastActivatorCLSID('{E6AD16B0-2830-48E7-9DB7-439152FA917B}');
-    app.setAppUserModelId('com.squirrel.mailspring.mailspring');
+    app.setAppUserModelId('io.github.khush2003.mailbridge');
   }
 
   // Set the app name explicitly for Linux to ensure the system tray icon
@@ -289,7 +289,7 @@ const start = () => {
   // StatusNotifierItem ID on Linux, causing their tray visibility settings
   // to be synchronized. See: https://github.com/electron/electron/issues/40936
   if (process.platform === 'linux') {
-    app.setName('Mailspring');
+    app.setName('MailBridge');
   }
 
 
@@ -334,6 +334,11 @@ const start = () => {
   app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
   app.commandLine.appendSwitch('js-flags', '--harmony');
 
+  if (process.argv.includes('--mailbridge-disable-startup')) {
+    app.setLoginItemSettings({ openAtLogin: false });
+    app.quit();
+    return;
+  }
   const options = parseCommandLine(process.argv);
   global.errorLogger = setupErrorLogger(options);
   const configDirPath = setupConfigDir(options);
