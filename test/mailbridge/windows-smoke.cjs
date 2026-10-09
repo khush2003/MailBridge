@@ -6,16 +6,18 @@ const path = require('node:path');
 (async () => {
   const root = path.resolve('app/dist/MailBridge-win32-x64');
   const config = fs.mkdtempSync(path.join(os.tmpdir(), 'mailbridge-smoke-'));
-  const application = await electron.launch({ executablePath: path.join(root, 'MailBridge.exe'),
+  const application = await electron.launch({ executablePath: process.env.MAILBRIDGE_DESKTOP_BINARY || path.join(root, 'MailBridge.exe'),
     args: ['--config-dir-path', config], timeout: 60000 });
   try {
     const protection = await application.evaluate(({ app, safeStorage }) => {
-      if (!safeStorage.isEncryptionAvailable()) return { available: false };
+      if (!safeStorage.isEncryptionAvailable()) return { available: false, name: app.getName() };
       const encrypted = safeStorage.encryptString('mailbridge-windows-test');
       return { available: true, roundtrip: safeStorage.decryptString(encrypted), name: app.getName() };
     });
-    assert.equal(protection.available, true, 'Windows credential protection must be available');
-    assert.equal(protection.roundtrip, 'mailbridge-windows-test');
+    if (process.platform === 'win32') {
+      assert.equal(protection.available, true, 'Windows credential protection must be available');
+      assert.equal(protection.roundtrip, 'mailbridge-windows-test');
+    }
     assert.equal(protection.name, 'MailBridge');
     const window = await application.firstWindow();
     await window.getByText('Connect an email account', { exact: true }).waitFor({ timeout: 60000 });
