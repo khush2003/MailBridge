@@ -8,7 +8,8 @@ import ReactDOM from 'react-dom';
 import ReactTestUtils from 'react-dom/test-utils';
 import { Actions } from 'mailspring-exports';
 
-import ThreadSearchBar from '../lib/thread-search-bar';
+import ThreadSearchBar, { ThreadSearchBar as SearchBar } from '../lib/thread-search-bar';
+import * as SearchBarUtil from '../lib/search-bar-util';
 
 describe('ThreadSearchBar', function () {
   beforeEach(function () {
@@ -24,5 +25,31 @@ describe('ThreadSearchBar', function () {
     const test = 'HeLlO wOrLd';
     ReactTestUtils.Simulate.input(this.input, { target: { innerText: test } as any });
     expect(Actions.searchQueryChanged).toHaveBeenCalledWith(test);
+  });
+});
+
+describe('ThreadSearchBar asynchronous suggestions', () => {
+  it('ignores a slow result after the user has entered a newer query', async () => {
+    let resolveContacts;
+    spyOn(SearchBarUtil, 'getContactSuggestions').andCallFake(
+      () =>
+        new Promise((resolve) => {
+          resolveContacts = resolve;
+        })
+    );
+    spyOn(SearchBarUtil, 'getThreadSuggestions').andReturn(Promise.resolve([]));
+    const bar = new SearchBar({
+      query: '',
+      isSearching: false,
+      perspective: { accountIds: [], isInbox: () => true } as any,
+    });
+    bar._fieldEl = { insertionIndex: () => 3 } as any;
+    const update = spyOn(bar, '_setSuggestionState');
+    const slow = bar._generateSuggestionsForQuery('old');
+    await bar._generateSuggestionsForQuery('is:');
+    resolveContacts(['old@example.test']);
+    await slow;
+    expect(update.calls.length).toBe(1);
+    expect(update.mostRecentCall.args[0].map((s) => s.term)).toEqual(['"unread"', '"starred"']);
   });
 });

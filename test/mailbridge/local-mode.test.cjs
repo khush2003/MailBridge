@@ -64,3 +64,20 @@ test('Sync Mail wakes the IMAP workers in server-only mode', async t => {
   await controller.requestSync();
   assert.equal(wakes, 1);
 });
+
+test('stopped or unreadable status never authorizes mailbox cleanup', t => {
+  const controller = fixture(t);
+  fs.mkdirSync(controller.root, { recursive: true });
+  const file = path.join(controller.root, 'status.json');
+  for (const heartbeat of [Date.now() - 61000, undefined]) {
+    fs.writeFileSync(file, JSON.stringify({ heartbeat, retained: 12, localCaptureReady: true, safeToClear: true }));
+    const status = controller.status();
+    assert.equal(status.phase, 'stopped');
+    assert.equal(status.safeToClear, false);
+    assert.equal(status.localCaptureReady, false);
+    assert.equal(status.mailSyncInitialized, false);
+  }
+  fs.writeFileSync(file, '{broken');
+  assert.equal(controller.status().safeToClear, false);
+  assert.equal(controller.status().localCaptureReady, false);
+});

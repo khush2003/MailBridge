@@ -43,9 +43,10 @@ interface ThreadSearchBarState {
   selectedIdx: number;
 }
 
-class ThreadSearchBar extends Component<ThreadSearchBarProps, ThreadSearchBarState> {
+export class ThreadSearchBar extends Component<ThreadSearchBarProps, ThreadSearchBarState> {
   static displayName = 'ThreadSearchBar';
 
+  _suggestionGeneration = 0;
   _fieldEl: TokenizingContenteditable;
 
   constructor(props: ThreadSearchBarProps) {
@@ -91,6 +92,7 @@ class ThreadSearchBar extends Component<ThreadSearchBarProps, ThreadSearchBarSta
   }
 
   async _generateSuggestionsForQuery(query: string) {
+    const generation = ++this._suggestionGeneration;
     let insertionIndex = this._fieldEl.insertionIndex();
 
     // Treat the initial query (eg: "in:starred AND ") as if it's
@@ -168,10 +170,14 @@ class ThreadSearchBar extends Component<ThreadSearchBarProps, ThreadSearchBarSta
 
     if (promises.length) {
       await Promise.all(promises);
-      this._setSuggestionState(suggestions);
+      if (generation === this._suggestionGeneration) this._setSuggestionState(suggestions);
     } else {
       this._setSuggestionState(suggestions);
     }
+  }
+
+  componentWillUnmount() {
+    this._suggestionGeneration++;
   }
 
   _onFocus = (e: React.FocusEvent) => {

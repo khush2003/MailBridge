@@ -1,36 +1,730 @@
 @import 'ui-variables';
-.mailbridge-status { display:flex; gap:7px; align-items:center; border:0; background:transparent; padding:5px 10px; font-size:12px; border-radius:4px; color:inherit; }
-.mailbridge-status:hover { background:rgba(0,120,212,.1); }
-.mailbridge-status-dot { width:8px; height:8px; display:inline-block; border-radius:50%; background:#a19f9d; flex-shrink:0; }
-.connected .mailbridge-status-dot, .folder-ready .mailbridge-status-dot { background:#107c10; }
-.error .mailbridge-status-dot, .stopped .mailbridge-status-dot { background:#d13438; }
-.downloading .mailbridge-status-dot, .uploading .mailbridge-status-dot, .connecting .mailbridge-status-dot { background:#0078d4; animation:mb-pulse 1s infinite alternate; }
-@keyframes mb-pulse { to { opacity:.35; } }
-.mailbridge-preferences { max-width:850px; padding:36px 40px 60px; margin:auto; color:@text-color; overflow:auto; height:100%;
-  h1 { font-size:28px; font-weight:600; margin:8px 0 12px; } h2 { font-size:17px; font-weight:600; margin:0 0 12px; } p { color:@text-color-subtle; line-height:1.6; }
-  section { border-top:1px solid @border-color-divider; padding:24px 0; } button { padding:8px 14px; border-radius:4px; border:1px solid @border-color-divider; background:@background-primary; cursor:pointer; } button:disabled { opacity:.5; cursor:default; }
-  .btn-emphasis { background:#0078d4; color:white; border-color:#0078d4; } label { display:block; margin:16px 0 8px; } input:not([type=checkbox]) { display:block; width:100%; margin:7px 0; padding:9px 12px; border:1px solid @border-color-divider; border-radius:4px; background:@background-primary; }
-  details { margin-top:16px; } summary { color:#0078d4; cursor:pointer; } .mb-eyebrow { color:#0078d4; font-size:11px; font-weight:600; letter-spacing:1.3px; }
-  .mb-health { display:flex; align-items:center; gap:14px; padding:20px; border:1px solid @border-color-divider; border-radius:8px; margin:24px 0 16px; background:@background-secondary; p { margin:4px 0 0; font-size:12px; } }
-  .mb-metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:26px; div { padding:20px; border:1px solid @border-color-divider; border-radius:8px; } strong { display:block; font-size:24px; font-weight:600; } span { display:block; font-size:12px; color:@text-color-subtle; margin-top:6px; } }
-  .mb-inline { display:flex; align-items:center; gap:10px; } .mb-feedback { padding:12px; background:#eff6fc; color:#005a9e; border-radius:4px; margin:16px 0; } .mb-muted { font-size:12px; } .mb-check { display:flex; align-items:center; gap:10px; } .mb-device { display:flex; justify-content:space-between; align-items:center; margin:12px 0; font-size:12px; p { margin:3px 0; } }
+.mailbridge-status {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  padding: 5px 10px;
+  font-size: 12px;
+  border-radius: 4px;
+  color: inherit;
+}
+.mailbridge-status:hover {
+  background: rgba(0, 120, 212, 0.1);
+}
+.mailbridge-status-dot {
+  width: 8px;
+  height: 8px;
+  display: inline-block;
+  border-radius: 50%;
+  background: #a19f9d;
+  flex-shrink: 0;
+}
+.connected .mailbridge-status-dot,
+.folder-ready .mailbridge-status-dot {
+  background: #107c10;
+}
+.error .mailbridge-status-dot,
+.stopped .mailbridge-status-dot {
+  background: #d13438;
+}
+.downloading .mailbridge-status-dot,
+.uploading .mailbridge-status-dot,
+.connecting .mailbridge-status-dot {
+  background: #0078d4;
+  animation: mb-pulse 1s infinite alternate;
+}
+@keyframes mb-pulse {
+  to {
+    opacity: 0.35;
+  }
+}
+.mailbridge-preferences {
+  max-width: 850px;
+  padding: 36px 40px 60px;
+  margin: auto;
+  color: @text-color;
+  overflow: auto;
+  height: 100%;
+  h1 {
+    font-size: 28px;
+    font-weight: 600;
+    margin: 8px 0 12px;
+  }
+  h2 {
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0 0 12px;
+  }
+  p {
+    color: @text-color-subtle;
+    line-height: 1.6;
+  }
+  section {
+    border-top: 1px solid @border-color-divider;
+    padding: 24px 0;
+  }
+  button {
+    padding: 8px 14px;
+    border-radius: 4px;
+    border: 1px solid @border-color-divider;
+    background: @background-primary;
+    cursor: pointer;
+  }
+  button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .btn-emphasis {
+    background: #0078d4;
+    color: white;
+    border-color: #0078d4;
+  }
+  label {
+    display: block;
+    margin: 16px 0 8px;
+  }
+  input:not([type='checkbox']) {
+    display: block;
+    width: 100%;
+    margin: 7px 0;
+    padding: 9px 12px;
+    border: 1px solid @border-color-divider;
+    border-radius: 4px;
+    background: @background-primary;
+  }
+  details {
+    margin-top: 16px;
+  }
+  summary {
+    color: #0078d4;
+    cursor: pointer;
+  }
+  .mb-eyebrow {
+    color: #0078d4;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.3px;
+  }
+  .mb-health {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 20px;
+    border: 1px solid @border-color-divider;
+    border-radius: 8px;
+    margin: 24px 0 16px;
+    background: @background-secondary;
+    p {
+      margin: 4px 0 0;
+      font-size: 12px;
+    }
+  }
+  .mb-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 26px;
+    div {
+      padding: 20px;
+      border: 1px solid @border-color-divider;
+      border-radius: 8px;
+    }
+    strong {
+      display: block;
+      font-size: 24px;
+      font-weight: 600;
+    }
+    span {
+      display: block;
+      font-size: 12px;
+      color: @text-color-subtle;
+      margin-top: 6px;
+    }
+  }
+  .mb-inline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .mb-feedback {
+    padding: 12px;
+    background: #eff6fc;
+    color: #005a9e;
+    border-radius: 4px;
+    margin: 16px 0;
+  }
+  .mb-muted {
+    font-size: 12px;
+  }
+  .mb-check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .mb-device {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 12px 0;
+    font-size: 12px;
+    p {
+      margin: 3px 0;
+    }
+  }
 }
 
+.mb-office-header {
+  flex-shrink: 0;
+  font-family: 'Segoe UI', Arial, sans-serif;
+}
+.mb-office-appbar {
+  height: 28px;
+  background: #0f5ca8;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  -webkit-app-region: drag;
+  font-size: 11px;
+}
+.mb-office-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 14px;
+  width: 180px;
+  svg {
+    width: 17px;
+    height: 17px;
+  }
+}
+.mb-office-window-title {
+  text-align: center;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mb-office-window-controls {
+  display: flex;
+  margin-left: auto;
+  -webkit-app-region: no-drag;
+  button {
+    border: 0;
+    background: transparent;
+    color: white;
+    width: 40px;
+    height: 28px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  button:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+  button:last-child:hover {
+    background: #c42b1c;
+  }
+}
+.mb-office-tabs {
+  height: 27px;
+  display: flex;
+  align-items: stretch;
+  background: #0f5ca8;
+  button {
+    border: 0;
+    padding: 0 16px;
+    color: white;
+    background: transparent;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  button:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+  button.active {
+    background: #f3f3f3;
+    color: #175b98;
+  }
+  .mb-office-settings-tab {
+    margin-left: auto;
+  }
+}
+.mb-office-ribbon {
+  height: 83px;
+  display: flex;
+  align-items: stretch;
+  padding: 4px 5px 2px;
+  background: #f3f3f3;
+  border-bottom: 1px solid #c8c8c8;
+  color: #333;
+  overflow-x: auto;
+}
+.mb-ribbon-group {
+  border-right: 1px solid #d2d2d2;
+  padding: 0 6px;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+.mb-ribbon-group-actions {
+  display: flex;
+  flex: 1;
+  gap: 2px;
+  align-items: stretch;
+}
+.mb-ribbon-group-label {
+  text-align: center;
+  font-size: 10px;
+  color: #555;
+  line-height: 15px;
+}
+.mb-ribbon-command {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 48px;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: #333;
+  cursor: pointer;
+  font-size: 11px;
+  max-width: 90px;
+  line-height: 14px;
+  svg {
+    width: 27px;
+    height: 27px;
+  }
+  &:hover:not(:disabled) {
+    background: #cde6f7;
+    border-color: #92bddb;
+  }
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+.mb-command-reply svg,
+.mb-command-replyAll svg {
+  color: #8a559d;
+}
+.mb-command-forward svg {
+  color: #3770a2;
+}
+.mb-command-mail svg,
+.mb-command-sync svg {
+  color: #3479af;
+}
+.mb-command-archive svg {
+  color: #51816c;
+}
+.mb-command-flag svg {
+  color: #b76b29;
+}
+.mb-ribbon-text-command {
+  padding: 5px 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  &:hover {
+    background: #cde6f7;
+    border-color: #92bddb;
+  }
+}
+.mb-list-heading {
+  order: -100;
+  flex-shrink: 0;
+  background: white;
+  border-bottom: 1px solid #ddd;
+  padding: 6px 8px 0;
+  form {
+    display: flex;
+    border: 1px solid #b6b6b6;
+    height: 24px;
+  }
+  input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    font-size: 11px;
+    padding: 3px 5px;
+    background: white;
+    border-radius: 0;
+  }
+  form button {
+    border: 0;
+    background: white;
+    color: #175b98;
+    width: 25px;
+    font-size: 20px;
+    cursor: pointer;
+  }
+}
+.mb-list-filters {
+  display: flex;
+  align-items: center;
+  height: 30px;
+  gap: 12px;
+  button {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font-size: 12px;
+    cursor: pointer;
+    color: #175b98;
+  }
+  button:first-child {
+    font-weight: 600;
+  }
+  span {
+    margin-left: auto;
+    font-size: 10px;
+    color: #666;
+  }
+}
+.mb-office-statusbar {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 10px;
+  border-top: 1px solid #bcbcbc;
+  background: #efefef;
+  font-size: 10px;
+  color: #555;
+  .mailbridge-status {
+    font-size: 10px;
+    padding: 2px 4px;
+  }
+  .mailbridge-status-dot {
+    width: 6px;
+    height: 6px;
+  }
+}
+.mb-status-end {
+  margin-left: auto;
+  display: flex;
+  gap: 22px;
+  align-items: center;
+}
+.mb-status-zoom {
+  border-left: 1px solid #ccc;
+  padding-left: 20px;
+}
 
-.mb-office-header { flex-shrink:0; font-family:'Segoe UI',Arial,sans-serif; }
-.mb-office-appbar { height:28px; background:#0f5ca8; color:#fff; display:flex; align-items:center; -webkit-app-region:drag; font-size:11px; }
-.mb-office-brand { display:flex; align-items:center; gap:8px; margin-left:14px; width:180px; svg { width:17px; height:17px; } }
-.mb-office-window-title { text-align:center; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.mb-office-window-controls { display:flex; margin-left:auto; -webkit-app-region:no-drag; button { border:0; background:transparent; color:white; width:40px; height:28px; font-size:16px; cursor:pointer; } button:hover { background:rgba(255,255,255,.15); } button:last-child:hover {background:#c42b1c;} }
-.mb-office-tabs { height:27px; display:flex; align-items:stretch; background:#0f5ca8; button { border:0; padding:0 16px; color:white; background:transparent; font-size:12px; cursor:pointer; } button:hover {background:rgba(255,255,255,.12);} button.active {background:#f3f3f3;color:#175b98;} .mb-office-settings-tab {margin-left:auto;} }
-.mb-office-ribbon { height:83px; display:flex; align-items:stretch; padding:4px 5px 2px; background:#f3f3f3; border-bottom:1px solid #c8c8c8; color:#333; overflow-x:auto; }
-.mb-ribbon-group { border-right:1px solid #d2d2d2; padding:0 6px; display:flex; flex-direction:column; flex-shrink:0; }
-.mb-ribbon-group-actions { display:flex; flex:1; gap:2px; align-items:stretch; }
-.mb-ribbon-group-label { text-align:center; font-size:10px; color:#555; line-height:15px; }
-.mb-ribbon-command { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; min-width:48px; padding:2px 6px; border:1px solid transparent; border-radius:0; background:transparent; color:#333; cursor:pointer; font-size:11px; max-width:90px; line-height:14px; svg { width:27px; height:27px; } &:hover:not(:disabled) {background:#cde6f7;border-color:#92bddb;} &:disabled {opacity:.4;cursor:default;} }
-.mb-command-reply svg, .mb-command-replyAll svg {color:#8a559d;} .mb-command-forward svg {color:#3770a2;} .mb-command-mail svg, .mb-command-sync svg {color:#3479af;} .mb-command-archive svg {color:#51816c;} .mb-command-flag svg {color:#b76b29;}
-.mb-ribbon-text-command { padding:5px 12px; border:1px solid transparent; background:transparent; cursor:pointer; font-size:12px; &:hover {background:#cde6f7;border-color:#92bddb;} }
-.mb-list-heading { order:-100; flex-shrink:0; background:white; border-bottom:1px solid #ddd; padding:6px 8px 0; form {display:flex; border:1px solid #b6b6b6;height:24px;} input { flex:1; min-width:0; border:0; font-size:11px; padding:3px 5px; background:white; border-radius:0; } form button {border:0;background:white;color:#175b98;width:25px;font-size:20px;cursor:pointer;} }
-.mb-list-filters { display:flex; align-items:center; height:30px; gap:12px; button {border:0;background:transparent;padding:0;font-size:12px;cursor:pointer;color:#175b98;} button:first-child {font-weight:600;} span { margin-left:auto;font-size:10px;color:#666; } }
-.mb-office-statusbar { height:24px; display:flex; align-items:center; gap:14px; padding:0 10px; border-top:1px solid #bcbcbc; background:#efefef; font-size:10px; color:#555; .mailbridge-status {font-size:10px;padding:2px 4px;} .mailbridge-status-dot {width:6px;height:6px;} }
-.mb-status-end {margin-left:auto;display:flex;gap:22px;align-items:center;} .mb-status-zoom {border-left:1px solid #ccc;padding-left:20px;}
+// Fast feedback on controls; larger panels settle without delaying interaction.
+.mb-office-header {
+  .mb-office-appbar {
+    height: 32px;
+    background: #145ea8;
+  }
+  .mb-office-brand {
+    font-weight: 600;
+    letter-spacing: 0.15px;
+  }
+  .mb-office-window-controls button {
+    height: 32px;
+  }
+  .mb-office-tabs {
+    height: 32px;
+    background: #145ea8;
+    gap: 2px;
+    padding-left: 6px;
+  }
+  .mb-office-tabs button {
+    padding: 0 17px;
+    border-radius: 5px 5px 0 0;
+  }
+  .mb-office-tabs button.active {
+    background: #f7f9fc;
+    color: #114d85;
+    font-weight: 600;
+  }
+  .mb-office-ribbon {
+    height: 88px;
+    background: #f7f9fc;
+    border-bottom-color: #dce3eb;
+    padding: 5px 8px 3px;
+  }
+  .mb-ribbon-group {
+    border-color: #dce3eb;
+    padding: 0 9px;
+  }
+  .mb-ribbon-group:last-child {
+    border: 0;
+  }
+  .mb-ribbon-group-label {
+    color: #697687;
+    line-height: 17px;
+    font-size: 10px;
+  }
+  .mb-ribbon-command {
+    border-radius: 5px;
+    padding: 4px 8px;
+    gap: 5px;
+    min-width: 54px;
+    color: #27394d;
+  }
+  .mb-ribbon-command svg {
+    width: 25px;
+    height: 25px;
+    stroke-width: 1.5;
+  }
+  .mb-ribbon-command:hover:not(:disabled),
+  .mb-ribbon-text-command:hover {
+    background: #e5effa;
+    border-color: #c8dcf1;
+  }
+  .mb-ribbon-command:active:not(:disabled) {
+    background: #d8e8f7;
+    transform: translateY(1px);
+  }
+  .mb-ribbon-text-command {
+    border-radius: 5px;
+    color: #27394d;
+  }
+  .mb-ribbon-text-command[aria-pressed='true'] {
+    background: #e5effa;
+    border-color: #b9d3ed;
+    color: #114d85;
+  }
+  button {
+    transition:
+      background-color 100ms ease,
+      border-color 100ms ease,
+      color 100ms ease,
+      transform 100ms ease;
+  }
+  button:focus-visible {
+    outline: 2px solid #3595ed;
+    outline-offset: -2px;
+  }
+}
+.mb-list-heading {
+  padding: 10px 10px 0;
+  position: relative;
+  z-index: 5;
+  .thread-search-bar {
+    height: 32px;
+    margin: 0;
+    width: 100%;
+    border: 1px solid #d4dce6;
+    border-radius: 5px;
+    background: #f7f9fc;
+    box-shadow: none;
+    transition:
+      border-color 120ms ease,
+      box-shadow 120ms ease;
+  }
+  .thread-search-bar:focus-within {
+    border-color: #2584d8;
+    box-shadow: 0 0 0 2px #2584d81a;
+    background: white;
+  }
+  .thread-search-bar .tokenizing-contenteditable {
+    font-size: 12px;
+  }
+  .thread-search-bar .suggestions {
+    border-radius: 6px;
+    border: 1px solid #d4dce6;
+    box-shadow: 0 8px 24px #183d6720;
+    max-height: 320px;
+    overflow: auto;
+  }
+  .mb-list-filters {
+    height: 36px;
+    gap: 18px;
+  }
+  .mb-list-filters button {
+    height: 100%;
+    position: relative;
+    color: #697687;
+    font-weight: 400;
+    padding: 0 2px;
+  }
+  .mb-list-filters button[aria-pressed='true'] {
+    font-weight: 600;
+    color: #145ea8;
+  }
+  .mb-list-filters button[aria-pressed='true']:after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    height: 2px;
+    background: #2584d8;
+    left: 0;
+    right: 0;
+    border-radius: 2px;
+  }
+  .mb-list-filters span {
+    color: #697687;
+  }
+}
+.mb-office-statusbar {
+  height: 26px;
+  background: #f5f7fa;
+  border-color: #dce3eb;
+  color: #697687;
+  gap: 16px;
+}
+.local .mailbridge-status-dot {
+  background: #168357;
+}
+.mailbridge-preferences {
+  background: #fff;
+  padding: 32px 36px 48px;
+  > p {
+    max-width: 620px;
+    font-size: 13px;
+  }
+  h1 {
+    font-size: 27px;
+    letter-spacing: -0.5px;
+    margin-bottom: 10px;
+  }
+  h2 {
+    font-size: 16px;
+  }
+  section {
+    padding: 24px 0;
+    border-color: #e4e9ef;
+  }
+  button,
+  input:not([type='checkbox']),
+  select {
+    border-radius: 6px;
+    border-color: #ccd6e2;
+  }
+  button {
+    font-size: 12px;
+    font-weight: 500;
+    transition:
+      background-color 120ms ease,
+      box-shadow 120ms ease,
+      transform 100ms ease;
+  }
+  button:hover:not(:disabled) {
+    background: #eef4fb;
+    border-color: #b5cbe2;
+  }
+  button.btn-emphasis {
+    background: #145ea8;
+    border-color: #145ea8;
+  }
+  button.btn-emphasis:hover:not(:disabled) {
+    background: #0b4d8d;
+    border-color: #0b4d8d;
+  }
+  button:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  summary:focus-visible {
+    outline: 2px solid #2584d8;
+    outline-offset: 2px;
+  }
+  input[type='checkbox'] {
+    accent-color: #145ea8;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  select {
+    display: block;
+    padding: 9px 12px;
+    margin: 8px 0;
+    width: 100%;
+    background: white;
+  }
+  .mb-check {
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 22px;
+  }
+  .mb-health {
+    background: #f5f8fc;
+    border-color: #e0e8f1;
+    padding: 18px 20px;
+    border-radius: 8px;
+  }
+  .mb-health.error {
+    background: #fff8f6;
+    border-color: #efdbd5;
+  }
+  .mb-health strong {
+    font-size: 14px;
+  }
+  .mb-health p {
+    overflow-wrap: anywhere;
+  }
+  .mb-metrics {
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .mb-metrics div {
+    padding: 18px 20px;
+    border-color: #e0e8f1;
+    background: #fcfdff;
+  }
+  .mb-metrics strong {
+    font-size: 25px;
+    letter-spacing: -0.6px;
+    color: #203b56;
+  }
+  .mb-inline {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .mb-feedback {
+    border: 1px solid #d9e8f7;
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 12px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+    animation: mb-reveal 140ms ease-out;
+  }
+}
+@keyframes mb-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mb-office-header button,
+  .mailbridge-preferences button,
+  .mb-list-heading .thread-search-bar {
+    transition: none;
+  }
+  .mailbridge-status-dot,
+  .mailbridge-preferences .mb-feedback {
+    animation: none;
+  }
+}
+.mb-office-ribbon {
+  overflow-y: hidden;
+}
+.mb-ribbon-group-actions {
+  min-height: 0;
+}
+.mb-ribbon-group {
+  animation: mb-reveal 110ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mb-ribbon-group {
+    animation: none;
+  }
+}

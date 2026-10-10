@@ -91,6 +91,11 @@ jobs:
         run: |
           node --test test/mailbridge/*.test.cjs
           npm run typecheck
+      - name: Verify inherited desktop behavior
+        shell: pwsh
+        run: |
+          npm test *> mailbridge-artifacts/desktop-tests.log
+          if ($LASTEXITCODE) { Get-Content mailbridge-artifacts/desktop-tests.log -Tail 100; exit $LASTEXITCODE }
       - name: Build standalone desktop client
         run: npm run build -- --skip-installers
       - name: Verify packaged desktop
@@ -162,4 +167,6 @@ jobs:
             mailsync/test/runs/
             mailbridge-artifacts/native/
             app/dist/mailbridge-smoke.log
+            mailbridge-artifacts/desktop-tests.log
+            mailbridge-artifacts/windows-*.png
           if-no-files-found: ignore

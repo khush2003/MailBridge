@@ -40,7 +40,12 @@ class SearchStore extends MailspringStore {
   };
 
   _onPerspectiveChanged = () => {
-    this._searchQuery = (FocusedPerspectiveStore.current() as any).searchQuery || '';
+    const current = FocusedPerspectiveStore.current();
+    if (!(current instanceof SearchMailboxPerspective)) {
+      this._perspectiveBeforeSearch = null;
+      this._isSearching = false;
+    }
+    this._searchQuery = (current as any).searchQuery || '';
     this.trigger();
   };
 

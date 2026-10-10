@@ -13,7 +13,7 @@ const path = require('node:path');
   fs.cpSync(source, config, { recursive: true });
   const id = process.env.MAILBRIDGE_WORKSPACE_ACCOUNT_ID || 'c0ffee-peer';
   fs.writeFileSync(path.join(config, 'config.json'), JSON.stringify({ '*': {
-    core: { reading: { markAsReadDelay: -1 }, workspace: { mode: 'split' }, disabledPackages: ['mcp-server', 'open-tracking', 'link-tracking', 'activity', 'thread-sharing'] },
+    core: { keymapTemplate: 'Outlook', reading: { markAsReadDelay: -1 }, workspace: { mode: 'split' }, disabledPackages: ['mcp-server', 'open-tracking', 'link-tracking', 'activity', 'thread-sharing'] },
     env: 'production', containerFolderDefault: '', accountsVersion: 19, accounts: [{ id, metadata: [], name: 'Offline workspace fixture', provider: 'imap', emailAddress: 'test@example.test', label: 'test@example.test',
       settings: { imap_host: '127.0.0.1', imap_port: 65530, imap_username: 'test', imap_security: 'none', smtp_host: '127.0.0.1', smtp_port: 65530, smtp_username: 'test', smtp_security: 'none' },
       autoaddress: { type: 'bcc', value: '' }, aliases: [], authedAt: 0, syncState: 'sync_error', __cls: 'Account' }],
@@ -22,7 +22,15 @@ const path = require('node:path');
   const args = process.env.MAILBRIDGE_WORKSPACE_BINARY ? [path.resolve('app'), '--dev', '--config-dir-path', config] : ['--config-dir-path', config];
   const application = await electron.launch({ executablePath: binary, args, env: { ...process.env, PLAYWRIGHT: '1' }, timeout: 60000 });
   const errors = [];
-  application.on('window', page => page.on('pageerror', error => errors.push(error.stack)));
+  const attach = page => {
+    page.on('pageerror', error => errors.push(error.stack));
+    page.on('dialog', dialog => {
+      if (dialog.type() !== 'beforeunload') errors.push(`Unexpected ${dialog.type()} dialog: ${dialog.message()}`);
+      dialog.accept().catch(() => {});
+    });
+  };
+  application.on('window', attach);
+  application.windows().forEach(attach);
   try {
     let page;
     await expect.poll(async () => {
@@ -33,7 +41,24 @@ const path = require('node:path');
     await expect(page.getByRole('button', { name: 'New Email', exact: true })).toBeVisible();
     const title = process.env.MAILBRIDGE_WORKSPACE_SUBJECT || 'Message 43001';
     await page.getByText(title, { exact: true }).first().click();
-    await expect(page.locator('.message-subject')).toHaveText(title);
+    const bodyText = process.env.MAILBRIDGE_WORKSPACE_BODY || 'body of message 43001';
+    const assertBody = async () => {
+      await expect(page.locator('.message-subject')).toHaveText(title);
+      await expect(page.frameLocator('.message-iframe-container iframe').first().locator('body')).toContainText(bodyText);
+      await expect(page.locator('.message-body-loading')).toHaveCount(0);
+    };
+    await assertBody();
+    const sidebar = page.locator('.column-RootSidebar');
+    const resize = async delta => {
+      const handle = await sidebar.locator('.flexbox-handle-right').boundingBox();
+      await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(handle.x + handle.width / 2 + delta, handle.y + handle.height / 2, { steps: 4 });
+      await page.mouse.up();
+      await expect.poll(async () => Math.abs((await sidebar.boundingBox()).width - (await page.locator('.nav-rail').boundingBox()).width)).toBeLessThan(2);
+    };
+    await resize(40);
+    await resize(-40);
     const tabs = page.locator('.mb-office-tabs');
     await tabs.getByRole('button', { name: 'View', exact: true }).click();
     await page.getByRole('button', { name: 'Message list only', exact: true }).click();
@@ -44,6 +69,24 @@ const path = require('node:path');
     await tabs.getByRole('button', { name: 'Home', exact: true }).click();
     await page.getByText(title, { exact: true }).first().click();
     await expect(page.getByRole('button', { name: 'Reply', exact: true }).first()).toBeEnabled();
+    await assertBody();
+    await page.getByRole('button', { name: 'Move to Folder', exact: true }).click();
+    await expect(page.locator('.category-picker-popover')).toBeVisible();
+    await page.locator('.category-picker-popover input').press('Escape');
+    await expect(page.locator('.category-picker-popover')).toHaveCount(0);
+    const search = page.locator('.mb-list-heading').getByRole('searchbox');
+    await page.keyboard.press('F3');
+    await expect(search).toBeFocused();
+    await search.fill(title);
+    await search.press('Enter');
+    await expect(page.locator('.thread-list .list-item')).toHaveCount(1);
+    await page.locator('.mb-list-filters').getByRole('button', { name: 'All', exact: true }).click();
+    await page.getByText(title, { exact: true }).first().click();
+    await assertBody();
+    if (!process.env.MAILBRIDGE_WORKSPACE_PROFILE) await expect(page.getByText('invoice.bin', { exact: true }).first()).toBeVisible();
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await expect(page.locator('.mb-ribbon-command').first()).toHaveCSS('transition-duration', '0s');
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
     await page.screenshot({ path: 'mailbridge-artifacts/windows-workspace.png' });
     await page.getByRole('button', { name: 'Mail Retention', exact: true }).click();
     let preferences;
@@ -59,7 +102,12 @@ const path = require('node:path');
     await optionalDrive.uncheck();
     await expect(preferences.getByRole('button', { name: 'Connect directly', exact: true })).toHaveCount(0);
     await preferences.screenshot({ path: 'mailbridge-artifacts/windows-retention-settings.png' });
+    await preferences.getByRole('tab', { name: 'General', exact: true }).click();
+    await expect(preferences.locator('.container-general')).toBeVisible();
+    await preferences.getByRole('tab', { name: 'Appearance', exact: true }).click();
+    await expect(preferences.getByRole('tab', { name: 'Appearance', exact: true })).toHaveAttribute('aria-selected', 'true');
     assert.equal(errors.length, 0, errors.join('\n'));
-    console.log('Packaged Office workspace, reading-pane switches, and optional Drive settings passed.');
+    console.log('Packaged workspace, full bodies after mode switches, search, attachments, reduced motion, and optional Drive settings passed.');
   } finally { await application.close(); }
+  assert.equal(errors.length, 0, errors.join('\n'));
 })().catch(error => { console.error(error); process.exit(1); });
