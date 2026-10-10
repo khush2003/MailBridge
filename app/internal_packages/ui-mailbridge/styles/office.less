@@ -1,18 +1,26 @@
 @import 'ui-variables';
-body { font-family:@font-family; --system-accent:#0078d4; --system-accent-dark:#005a9e; }
-body .sheet-toolbar-container { background:#f3f2f1; background-image:none; border-color:#edebe9; }
-body .nav-rail-frame { background:#f3f2f1; }
-body .sheet-toolbar { height:46px; min-height:46px; max-height:46px; border-color:#e1dfdd; }
-body .sheet-toolbar .item-container .window-title { line-height:46px; }
-body .account-sidebar { background:#faf9f8; }
-body .outline-view .item.selected { background:#deecf9; color:#005a9e; border-radius:4px; }
-body .thread-list .list-item { border-bottom:1px solid #edebe9; }
-body .thread-list .list-item.selected { background:#deecf9; color:#242424; }
-body .thread-list .list-item.focused { box-shadow:inset 3px 0 #0078d4; }
-body .thread-list .list-item:hover { background:#f3f2f1; }
-body .thread-list .list-item.unread .subject { color:#005a9e; }
-body .message-list { background:#f3f2f1; }
-body .message-item-wrap { background:white; border-radius:6px; margin:12px 18px; border:1px solid #edebe9; box-shadow:0 1px 3px rgba(0,0,0,.04); }
-body .btn { border-radius:4px; background-image:none; }
-body .btn-emphasis { background:#0078d4; border-color:#0078d4; color:white; }
-body .search-bar { border-radius:4px; background:#fff; }
+body { font-family:@font-family; --system-accent:#0f5ca8; --system-accent-dark:#07477f; }
+body.window-type-main-window:has(.mb-office-header), body.window-type-default:has(.mb-office-header) { font-size:12px; }
+body:has(.mb-office-header) {
+  .sheet-toolbar-container, .sheet-toolbar[aria-label="Application toolbar"] {display:none;}
+  .nav-rail-frame { background:#fafafa;position:relative; }
+  .nav-rail-content {margin:0;border:0;border-radius:0;}
+  .nav-rail {position:absolute;bottom:24px;left:0;width:190px;height:36px;flex-direction:row !important;align-items:center;padding:0 4px;background:#e0e0e0;border-top:1px solid #ccc;z-index:4; > div {flex-direction:row !important;align-items:center;justify-content:flex-start;height:100%;} .nav-rail-item {margin:0 4px;width:28px;height:28px;background:transparent;box-shadow:none;border-radius:0;} }
+  .account-sidebar {background:#fafafa;padding-bottom:40px;}
+  .account-sidebar .outline-view {padding:4px 0; .heading {padding:3px 8px;margin:0;font-size:12px;font-weight:400;color:#333;} .item {border-radius:0;margin:0;padding-top:1px;padding-bottom:1px;line-height:22px;min-height:24px;font-size:12px;} .item.selected {background:#d9d9d9;color:#222;border-radius:0;} .item img {opacity:.6;} }
+  .account-sidebar .account-switcher {top:4px;right:6px;}
+  .thread-list {background:white;}
+  .thread-list .list-item {background:white;border-bottom:1px solid #e5e5e5;}
+  .thread-list .list-item.selected, .thread-list .list-item.focused {background:#cce8f7;color:#222;box-shadow:inset 2px 0 #1675b5; .participants,.subject,.snippet,.timestamp {color:#222;} .thread-icon,.draft-icon {filter:none;} }
+  .thread-list .list-item.selected .subject {color:#075b97;}
+  .thread-list .list-item:hover:not(.selected) {background:#eef5fa;}
+  .thread-list .list-item.unread {box-shadow:inset 2px 0 #1675b5; .subject {color:#075b97;} }
+  .thread-list-narrow { .icons-column {width:16px;margin-right:3px;} .participants {font-size:13px;} .participants-wrapper {min-height:20px;} .subject {font-size:12px;line-height:18px;} .snippet {font-size:11px;min-height:17px;line-height:17px;} .timestamp {font-size:10px;color:#175b98 !important;opacity:1;} .list-tabular-item {line-height:18px;padding-top:3px;padding-bottom:3px;} }
+  .column-RootSidebar {border-right:1px solid #c8c8c8;}
+  .column-ThreadList {border-right:1px solid #c8c8c8;}
+  #message-list {background:white; .messages-wrap .scroll-region-content-inner {padding:0 16px;} .message-subject-wrap {margin:12px 0 4px;max-width:none;padding:0 18px;} .message-subject {font-size:18px;font-weight:400;color:#333;} .message-item-wrap {margin:0;max-width:none;border:0;border-radius:0;box-shadow:none;padding-bottom:12px;} .message-item-white-wrap {border:0;border-radius:0;box-shadow:none;} .message-list-headers {max-width:none;} .message-header {border-bottom:1px solid #ddd;} .footer-reply-area-wrap {border-radius:0;box-shadow:none;background:white;} }
+  .btn {border-radius:0;background-image:none;}
+  .btn-emphasis {background:#0f5ca8;border-color:#0f5ca8;color:white;}
+}
+body .sheet-toolbar-container {background:#f3f3f3;background-image:none;border-color:#ddd;}
+body .search-bar {border-radius:0;background:#fff;}

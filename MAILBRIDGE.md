@@ -1,6 +1,6 @@
 # MailBridge
 
-An Office-style Windows mail client forked from Mailspring, with permanent local mail and encrypted synchronization between two PCs. Windows 10/11 x64 is the target. The complete native mail engine is forked too; releases must compile it from the pinned `mailsync` submodule rather than substitute an upstream binary.
+An Office-style Windows mail client forked from Mailspring, with permanent local mail, independent IMAP/SMTP on both PCs, and optional encrypted Google Drive synchronization. Windows 10/11 x64 is the target. The complete native mail engine is forked too; releases must compile it from the pinned `mailsync` submodule rather than substitute an upstream binary.
 
 ## What it does
 
@@ -16,7 +16,18 @@ An Office-style Windows mail client forked from Mailspring, with permanent local
 - Can collect encrypted cloud message objects after both explicitly confirmed PCs acknowledge them. Permanent local copies remain. Cloud checkpoints prevent deleted transfer objects from being uploaded repeatedly.
 - Provides an archive/status settings page, tray support, and opt-in Windows startup. It does not receive upstream Mailspring application updates or transmit crash reports to upstream services.
 
-## Set up two PCs
+## Set up two PCs without Google Drive (default)
+
+1. Install MailBridge and add the same company account as IMAP/SMTP on both PCs. Drive sign-in and pairing are not required.
+2. Let both PCs finish downloading complete mail, including attachments. Open both apps regularly.
+3. Clear only older server messages through webmail after allowing several days for both PCs to download them. The local retention page confirms capture on this PC; without a separate connection it cannot verify the other PC.
+4. Downloaded messages remain local after server cleanup. Delete/Junk inside MailBridge affects this PC only and leaves server storage unchanged. A message must finish capture before it can be deleted locally.
+
+Read status, flags and folder changes travel through IMAP while the server copy exists. After server cleanup, these changes are local. A PC that misses a message before cleanup cannot retrieve it. Sent mail reaches the other PC through the server Sent folder; if the server rejects that Sent upload (for example, because the mailbox is full), only the sending PC has its retained Sent copy. PST imports likewise remain on the importing PC. These are the accepted server-only tradeoffs. Back up both PCs independently.
+
+## Optional Google Drive archive sync
+
+Enable **Use Google Drive for additional archive sync** in **Archive & sync** on both PCs. Existing paired installations keep their previous Drive setting until explicitly disabled. Then:
 
 1. Install MailBridge and add the company account as IMAP/SMTP on each PC.
 2. In **Archive & sync**, choose the same shared folder in Google Drive for desktop on both PCs. Keep this separate from the app's private local archive. Alternatively connect directly using the same Google account on both PCs.
@@ -24,7 +35,7 @@ An Office-style Windows mail client forked from Mailspring, with permanent local
 4. Leave both apps and Drive for desktop running. Confirm the other PC's displayed device ID on each PC. Monitor the pending count.
 5. Before clearing old mail in webmail, wait for the native mailbox download to finish, the unretained count to reach zero, and the pending count to reach zero. Retained mail remains in the normal Inbox/Sent views.
 
-Mailbox cleanup is deliberately performed through webmail. The app does not issue unattended server deletes. Messages removed before either PC captures their full MIME content cannot be recovered.
+Mailbox cleanup is deliberately performed through webmail. The app does not issue unattended server deletes. Messages removed before a PC captures their full MIME content cannot be recovered there in server-only mode.
 
 **Drive folder status:** “Shared Drive folder available” checks local access. Drive for desktop performs the cloud upload; the other PC's receipt proves delivery. It does not claim that a local folder write proves a completed Google upload. Direct API mode reports actual API connectivity and account storage quota.
 

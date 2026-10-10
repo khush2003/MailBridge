@@ -95,6 +95,13 @@ jobs:
         run: npm run build -- --skip-installers
       - name: Verify packaged desktop
         run: node test/mailbridge/windows-smoke.cjs
+      - name: Verify retained-mail workspace and optional Drive settings
+        run: node test/mailbridge/windows-workspace.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MailBridge-workspace-screenshots-${{ github.sha }}
+          path: mailbridge-artifacts/windows-*.png
+          if-no-files-found: error
       - name: Sign application when a certificate is configured
         if: vars.MAILBRIDGE_SIGNED_BUILDS == 'true'
         env:

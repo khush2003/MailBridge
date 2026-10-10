@@ -16,11 +16,21 @@
   .mb-inline { display:flex; align-items:center; gap:10px; } .mb-feedback { padding:12px; background:#eff6fc; color:#005a9e; border-radius:4px; margin:16px 0; } .mb-muted { font-size:12px; } .mb-check { display:flex; align-items:center; gap:10px; } .mb-device { display:flex; justify-content:space-between; align-items:center; margin:12px 0; font-size:12px; p { margin:3px 0; } }
 }
 
-.mb-office-appbar { background:#0078d4; color:white; height:48px; display:flex; align-items:center; padding:0 20px; gap:13px; strong {font-size:18px;font-weight:600;} }
-.mb-office-mark { display:grid; place-items:center; width:28px; height:28px; color:#0078d4; background:white; border-radius:4px; font-size:18px; font-weight:700; }
-.mb-office-appbar-caption { font-size:13px; margin-left:12px; opacity:.9; border-left:1px solid rgba(255,255,255,.4); padding-left:16px; }
-.mb-office-private { margin-left:auto; font-size:12px; opacity:.85; }
-.mb-office-ribbon { display:flex; gap:8px; align-items:center; height:50px; padding:0 20px; background:#fff; border-bottom:1px solid #edebe9; color:#242424; button { border:none; background:transparent; padding:7px 12px; border-radius:4px; cursor:pointer; } button:hover {background:#f3f2f1;} .mb-office-compose { background:#0078d4; color:white; } .mb-office-compose:hover { background:#005a9e; } }
-.mb-office-tab { font-size:13px; font-weight:600; height:100%; display:flex; align-items:center; margin-right:16px; border-bottom:3px solid #0078d4; }
-.mb-office-ribbon-spacer { flex:1; }
-.mb-office-label { color:#605e5c; font-size:11px; }
+
+.mb-office-header { flex-shrink:0; font-family:'Segoe UI',Arial,sans-serif; }
+.mb-office-appbar { height:28px; background:#0f5ca8; color:#fff; display:flex; align-items:center; -webkit-app-region:drag; font-size:11px; }
+.mb-office-brand { display:flex; align-items:center; gap:8px; margin-left:14px; width:180px; svg { width:17px; height:17px; } }
+.mb-office-window-title { text-align:center; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mb-office-window-controls { display:flex; margin-left:auto; -webkit-app-region:no-drag; button { border:0; background:transparent; color:white; width:40px; height:28px; font-size:16px; cursor:pointer; } button:hover { background:rgba(255,255,255,.15); } button:last-child:hover {background:#c42b1c;} }
+.mb-office-tabs { height:27px; display:flex; align-items:stretch; background:#0f5ca8; button { border:0; padding:0 16px; color:white; background:transparent; font-size:12px; cursor:pointer; } button:hover {background:rgba(255,255,255,.12);} button.active {background:#f3f3f3;color:#175b98;} .mb-office-settings-tab {margin-left:auto;} }
+.mb-office-ribbon { height:83px; display:flex; align-items:stretch; padding:4px 5px 2px; background:#f3f3f3; border-bottom:1px solid #c8c8c8; color:#333; overflow-x:auto; }
+.mb-ribbon-group { border-right:1px solid #d2d2d2; padding:0 6px; display:flex; flex-direction:column; flex-shrink:0; }
+.mb-ribbon-group-actions { display:flex; flex:1; gap:2px; align-items:stretch; }
+.mb-ribbon-group-label { text-align:center; font-size:10px; color:#555; line-height:15px; }
+.mb-ribbon-command { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; min-width:48px; padding:2px 6px; border:1px solid transparent; border-radius:0; background:transparent; color:#333; cursor:pointer; font-size:11px; max-width:90px; line-height:14px; svg { width:27px; height:27px; } &:hover:not(:disabled) {background:#cde6f7;border-color:#92bddb;} &:disabled {opacity:.4;cursor:default;} }
+.mb-command-reply svg, .mb-command-replyAll svg {color:#8a559d;} .mb-command-forward svg {color:#3770a2;} .mb-command-mail svg, .mb-command-sync svg {color:#3479af;} .mb-command-archive svg {color:#51816c;} .mb-command-flag svg {color:#b76b29;}
+.mb-ribbon-text-command { padding:5px 12px; border:1px solid transparent; background:transparent; cursor:pointer; font-size:12px; &:hover {background:#cde6f7;border-color:#92bddb;} }
+.mb-list-heading { order:-100; flex-shrink:0; background:white; border-bottom:1px solid #ddd; padding:6px 8px 0; form {display:flex; border:1px solid #b6b6b6;height:24px;} input { flex:1; min-width:0; border:0; font-size:11px; padding:3px 5px; background:white; border-radius:0; } form button {border:0;background:white;color:#175b98;width:25px;font-size:20px;cursor:pointer;} }
+.mb-list-filters { display:flex; align-items:center; height:30px; gap:12px; button {border:0;background:transparent;padding:0;font-size:12px;cursor:pointer;color:#175b98;} button:first-child {font-weight:600;} span { margin-left:auto;font-size:10px;color:#666; } }
+.mb-office-statusbar { height:24px; display:flex; align-items:center; gap:14px; padding:0 10px; border-top:1px solid #bcbcbc; background:#efefef; font-size:10px; color:#555; .mailbridge-status {font-size:10px;padding:2px 4px;} .mailbridge-status-dot {width:6px;height:6px;} }
+.mb-status-end {margin-left:auto;display:flex;gap:22px;align-items:center;} .mb-status-zoom {border-left:1px solid #ccc;padding-left:20px;}

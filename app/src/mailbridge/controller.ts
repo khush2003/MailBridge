@@ -27,7 +27,19 @@ class MailBridgeController extends EventEmitter {
   configPath() { return path.join(this.root, 'settings.json'); }
   settings() {
     return fs.existsSync(this.configPath()) ? JSON.parse(fs.readFileSync(this.configPath(), 'utf8')) :
-      { device: this.defaultDevice, peers: [], cloudRetention: true, startup: false };
+      { device: this.defaultDevice, peers: [], peerSyncEnabled: false, cloudRetention: true, startup: false };
+  }
+  peerSyncEnabled() {
+    const config = this.settings();
+    // Preserve previously paired installations; new profiles need only IMAP/SMTP.
+    return config.peerSyncEnabled ?? Boolean(config.workspace && config.driveAccount);
+  }
+  retainedOnDisk() {
+    const directory = path.join(this.root, 'records');
+    if (!fs.existsSync(directory)) return 0;
+    return new Set(fs.readdirSync(directory)
+      .filter(name => /^[a-f0-9]{64}-[a-f0-9]{64}\.json$/.test(name))
+      .map(name => name.split('-')[0])).size;
   }
   async secrets() {
     const settings = this.settings();
@@ -119,6 +131,11 @@ class MailBridgeController extends EventEmitter {
   publish(values: any) {
     this.publicStatus = { ...this.publicStatus, ...values, ...this.retentionStats, device: this.settings().device, heartbeat: Date.now() };
     const config = this.settings();
+    this.publicStatus.peerSyncEnabled = this.peerSyncEnabled();
+    this.publicStatus.localCaptureReady = !this.importing && !this.publicStatus.error &&
+      AccountStore.accounts().length > 0 && this.publicStatus.mailSyncInitialized &&
+      this.publicStatus.unretained === 0 && !this.publicStatus.mailSyncBusy &&
+      this.publicStatus.retained > 0 && AccountStore.accounts().every(account => account.syncState === 'ok');
     this.publicStatus.safeToClear = ['connected', 'folder-ready'].includes(this.publicStatus.phase) &&
       !this.importing && !this.publicStatus.error && !this.publicStatus.running && config.peers.length === 1 &&
       this.publicStatus.mailSyncInitialized && this.publicStatus.unretained === 0 && !this.publicStatus.mailSyncBusy && this.publicStatus.pending === 0 &&
@@ -138,17 +155,21 @@ class MailBridgeController extends EventEmitter {
     this.ticking = true;
     try {
       const config = this.settings();
-      if (!config.workspace || !config.driveAccount) {
+      if (!this.peerSyncEnabled() || !config.workspace || !config.driveAccount) {
         const records = [];
-        let unretained = 0; let mailSyncBusy = false; let mailSyncInitialized = true;
+        let unretained = 0; let mailSyncBusy = false; let mailSyncInitialized = AccountStore.accounts().length > 0;
         for (const account of AccountStore.accounts()) {
-          if (!this.bridge._clients[account.id]) continue;
+          if (!this.bridge._clients[account.id]) { mailSyncInitialized = false; continue; }
           const result = await this.bridge.mailbridgeRequest(account.id, { operation: 'list' });
           records.push(...result.records);
           unretained += result.unretained || 0; mailSyncBusy ||= result.mailSyncBusy; mailSyncInitialized &&= result.mailSyncInitialized === true;
         }
         this.retentionStats = { unretained, mailSyncBusy, mailSyncInitialized };
-        this.publish({ phase: 'setup', running: false, retained: new Set(records.map(record => record.key)).size, error: null }); return;
+        const accountError = AccountStore.accounts().find(account => account.syncState === 'sync_error');
+        this.publish({ phase: accountError ? 'error' : this.peerSyncEnabled() ? 'setup' : 'local', running: false,
+          retained: Math.max(new Set(records.map(record => record.key)).size, this.retainedOnDisk()),
+          pending: 0, peers: [], quota: null,
+          error: accountError ? `Mail connection needs attention: ${accountError.emailAddress}` : null }); return;
       }
       const version = JSON.stringify({ workspace: config.workspace, device: config.device, peers: config.peers,
         driveAccount: config.driveAccount, transport: config.transport, sharedFolder: config.sharedFolder, connectionGeneration: config.connectionGeneration, cloudRetention: config.cloudRetention });
@@ -185,8 +206,9 @@ class MailBridgeController extends EventEmitter {
   }
   ticking = false;
   requestSync() {
+    this.bridge?.sendSyncMailNow();
     durableWrite(path.join(this.root, 'sync-request.json'), JSON.stringify({ requested: Date.now() }));
-    if (this.bridge) return this.tick();
+    if (this.bridge) return this.tick().catch(error => this.publish({ phase: 'error', running: false, error: error.message }));
   }
   importing = false;
   async importOutlook(accountId: string) {

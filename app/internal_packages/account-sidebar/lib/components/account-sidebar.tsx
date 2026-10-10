@@ -70,6 +70,8 @@ export default class AccountSidebar extends React.Component<
         <ScrollRegion className="account-sidebar" style={{ order: 2 }}>
           <AccountSwitcher accounts={accounts} sidebarAccountIds={sidebarAccountIds} />
           <nav className="account-sidebar-sections" aria-label={localized('Mailboxes')}>
+            {AppEnv.themes.getActiveTheme().name === 'ui-mailbridge' && <OutlineView {...standardSection}
+              title="Favorites" items={standardSection.items.filter(item => /^(Inbox|Sent|Drafts)$/i.test(item.name))} />}
             <OutlineView {...standardSection} />
             {this._renderUserSections(userSections)}
           </nav>

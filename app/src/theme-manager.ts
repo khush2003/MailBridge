@@ -95,8 +95,8 @@ export default class ThemeManager {
     });
   }
 
-  // New users (no `core.theme` saved in config) default to automatic mode so
-  // the app follows their OS appearance. Existing users keep whatever they set.
+  // New profiles use the MailBridge Office theme. Explicit theme selections
+  // remain available in Preferences, including automatic OS appearance.
   // In spec/safe mode we fall back to the concrete light theme so headless
   // test environments don't follow the auto-resolution path (which depends on
   // packages like ui-dark/ui-automatic not being present in the spec fixtures).
@@ -104,7 +104,7 @@ export default class ThemeManager {
     const configured = AppEnv.config.get(CONFIG_THEME_KEY);
     if (configured) return configured;
     if (this.safeMode || AppEnv.inSpecMode()) return LIGHT_THEME_NAME;
-    return AUTOMATIC_THEME_NAME;
+    return 'ui-mailbridge';
   }
 
   private isAutomaticModeSelected() {

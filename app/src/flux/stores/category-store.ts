@@ -186,7 +186,11 @@ class CategoryStore extends MailspringStore {
     };
 
     this._standardCategories = filteredByAccount((cat) => cat.isStandardCategory());
-    this._userCategories = filteredByAccount((cat) => cat.isUserCategory());
+    // Retained copies appear in their ordinary Inbox/Sent/custom folder. Show
+    // a separate local folder only when its server folder no longer exists.
+    const serverPaths = new Set(categories.filter(cat => !cat['mailbridgeLocal']).map(cat => `${cat.accountId}:${cat.path}`));
+    this._userCategories = filteredByAccount((cat) => cat.isUserCategory() &&
+      (!cat['mailbridgeLocal'] || !serverPaths.has(`${cat.accountId}:${cat['mailbridgeSource']}`)));
     this._hiddenCategories = filteredByAccount((cat) => cat.isHiddenCategory());
 
     // Ensure standard categories are always sorted in the correct order
