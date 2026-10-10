@@ -81,6 +81,7 @@ function ExportMail($Item, [string]$Folder, [string]$Role) {
   } finally { Remove-Item $temporary -Recurse -Force -ErrorAction SilentlyContinue }
 }
 function Walk($Folder, [string]$Path) {
+  @{progress=('Exporting Outlook folder: ' + $Path)} | ConvertTo-Json -Compress
   $role = ''
   if ($Folder.EntryID -eq $script:InboxId) { $role='inbox'; $Path='INBOX' }
   if ($Folder.EntryID -eq $script:SentId) { $role='sent'; $Path='Sent' }
@@ -100,12 +101,15 @@ $added=$false; $root=$null
 try {
   if (!(Test-Path -LiteralPath $PstPath -PathType Leaf)) { throw 'PST file does not exist' }
   New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
+  @{progress='Connecting to classic Outlook. Complete any Outlook profile or password prompts.'} | ConvertTo-Json -Compress
   $outlook = New-Object -ComObject Outlook.Application
+  @{progress='Opening your Outlook profile.'} | ConvertTo-Json -Compress
   $namespace = $outlook.GetNamespace('MAPI')
   $fullPath = [IO.Path]::GetFullPath($PstPath)
   $store=$null
   for ($i=1; $i -le $namespace.Stores.Count; $i++) { $candidate=$namespace.Stores.Item($i); if ($candidate.FilePath -eq $fullPath) { $store=$candidate; break } }
   if (!$store) {
+    @{progress='Opening the temporary PST copy in Outlook. Large PSTs can take several minutes.'} | ConvertTo-Json -Compress
     $namespace.AddStoreEx($fullPath, 3); $added=$true
     for ($i=1; $i -le $namespace.Stores.Count; $i++) { $candidate=$namespace.Stores.Item($i); if ($candidate.FilePath -eq $fullPath) { $store=$candidate; break } }
   }

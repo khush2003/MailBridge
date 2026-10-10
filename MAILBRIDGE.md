@@ -49,6 +49,8 @@ Folder mode requires no Google developer credentials. For direct sign-in, the di
 
 On Windows, add the destination company account, open **Archive & sync**, choose that account under **Import existing Outlook mail**, then select a PST backup. Classic Outlook 2010 or Microsoft 365 must be installed. The importer creates a disposable copy before Outlook opens it; your selected source remains untouched. Allow enough disk space for that copy and the imported mail. Leave the original PST backup intact until you have checked the results on both PCs.
 
+Large PSTs are copied before Outlook opens them. The import section reports copy percentage, Outlook startup and folder export stages, message counts, and failures. Keep enough free disk space for the temporary PST copy plus all imported mail. Cancel stops the current import and keeps messages already imported; retry deduplicates them. An exporter that reports no progress for 15 minutes stops with a prompt to check classic Outlook.
+
 Import includes sent and received mail, HTML/plain bodies, attachments, inline content IDs, dates, Message-IDs, read status, and flags. It excludes unsent drafts, calendars, and contacts. Messages that cannot be exported are counted as warnings. Retrying a completed import deduplicates messages by their stable identity. Outlook COM compatibility requires verification on a PC with classic Outlook; CI checks the MIME serializer and native import independently.
 
 ## Build and verify
@@ -61,7 +63,7 @@ npm run typecheck
 node --test test/mailbridge/*.test.cjs
 ```
 
-The **MailBridge Windows** workflow builds the modified native engine with MSBuild/vcpkg, runs the real native integration tests on Windows, packages the desktop client, opens the packaged app for a smoke test, and generates `MailBridge-Setup-0.1.0.exe` with Inno Setup. Review builds are unsigned. Production signing is opt-in: set repository variable `MAILBRIDGE_SIGNED_BUILDS=true` and secrets `MAILBRIDGE_PFX_BASE64` and `MAILBRIDGE_PFX_PASSWORD` for your Authenticode certificate. Signing covers executable/DLL/native-module files and the installer. Build information and SHA-256 hashes accompany the artifact. No executable packing/obfuscation or antivirus evasion is used. A signature helps establish publisher identity; it cannot guarantee every antivirus or Windows reputation result.
+The **MailBridge Windows** workflow builds the modified native engine with MSBuild/vcpkg, runs the real native integration tests on Windows, packages the desktop client, opens the packaged app for a smoke test, and generates `MailBridge-Setup-0.1.2.exe` with Inno Setup. Review builds are unsigned. Production signing is opt-in: set repository variable `MAILBRIDGE_SIGNED_BUILDS=true` and secrets `MAILBRIDGE_PFX_BASE64` and `MAILBRIDGE_PFX_PASSWORD` for your Authenticode certificate. Signing covers executable/DLL/native-module files and the installer. Build information and SHA-256 hashes accompany the artifact. No executable packing/obfuscation or antivirus evasion is used. A signature helps establish publisher identity; it cannot guarantee every antivirus or Windows reputation result.
 
 For Linux development, build libetpan with a local prefix, then MailCore and mailsync with that prefix in their include/library search paths. Copy the resulting `mailsync` to `app/mailsync`. See `mailsync/BUILDING.md`. `npm start` runs the source app; `npm run build -- --skip-installers` produces a standalone Linux directory for verification.
 

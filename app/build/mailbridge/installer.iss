@@ -1,5 +1,5 @@
 #ifndef AppVersion
-#define AppVersion "0.1.1"
+#define AppVersion "0.1.2"
 #endif
 #ifndef BuildDirectory
 #define BuildDirectory "..\..\dist\MailBridge-win32-x64"

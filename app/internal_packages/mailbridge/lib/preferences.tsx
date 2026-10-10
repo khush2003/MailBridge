@@ -14,15 +14,21 @@ export default class ArchivePreferences extends React.Component<Record<string, n
     clientId: '',
     clientSecret: '',
     importAccount: '',
+    importMessage: '',
+    importError: false,
+    importing: false,
   };
   timer: any;
+  mounted = false;
   componentDidMount() {
+    this.mounted = true;
     this.timer = setInterval(
       () => this.setState({ status: MailBridge.status(), config: MailBridge.settings() }),
       1000
     );
   }
   componentWillUnmount() {
+    this.mounted = false;
     clearInterval(this.timer);
   }
   perform = async (action: () => Promise<any>, success = '') => {
@@ -41,9 +47,41 @@ export default class ArchivePreferences extends React.Component<Record<string, n
       this.setState({ busy: false });
     }
   };
+  importOutlook = async (accountId: string) => {
+    this.setState({
+      busy: true,
+      importing: true,
+      importError: false,
+      importMessage: 'Opening the PST file picker…',
+    });
+    try {
+      const result = await MailBridge.importOutlook(
+        accountId,
+        (importMessage: string) => this.mounted && this.setState({ importMessage })
+      );
+      if (this.mounted)
+        this.setState({
+          importMessage: result
+            ? `Imported ${result.count} messages. ${result.warnings} messages could not be exported; keep your original PST.`
+            : 'Import canceled. No PST was imported.',
+        });
+    } catch (error) {
+      if (this.mounted) this.setState({ importError: true, importMessage: error.message });
+    } finally {
+      if (this.mounted) this.setState({ busy: false, importing: false });
+    }
+  };
   render() {
-    const { status, config, busy, message, pairing, clientId, clientSecret } = this.state;
+    const { status, config, message, pairing, clientId, clientSecret } = this.state;
+    const importing = this.state.importing || status.importRunning;
+    const busy = this.state.busy || importing;
+    const importMessage = this.state.importMessage || status.importProgress?.message;
+    const importError = this.state.importMessage
+      ? this.state.importError
+      : status.importProgress?.error;
     const devices = status.peers || [];
+    const accounts = AccountStore.accounts();
+    const importAccount = this.state.importAccount || (accounts.length === 1 ? accounts[0].id : '');
     return (
       <div className="mailbridge-preferences">
         <div className="mb-eyebrow">YOUR MAIL, ON BOTH PCS</div>
@@ -343,7 +381,7 @@ export default class ArchivePreferences extends React.Component<Record<string, n
             <button onClick={() => MailBridge.openArchive()}>Open local message archive</button>
           </div>
         </section>
-        {process.platform === 'win32' && (
+        {MailBridge.outlookImportAvailable() && (
           <section>
             <h2>Import existing Outlook mail</h2>
             <p>
@@ -354,32 +392,48 @@ export default class ArchivePreferences extends React.Component<Record<string, n
             <label>
               Destination account
               <select
-                value={this.state.importAccount}
+                value={importAccount}
                 onChange={(e) => this.setState({ importAccount: e.target.value })}
               >
                 <option value="">Choose your company account</option>
-                {AccountStore.accounts().map((account) => (
+                {accounts.map((account) => (
                   <option key={account.id} value={account.id}>
                     {account.emailAddress}
                   </option>
                 ))}
               </select>
             </label>
+            {!importAccount && (
+              <p>
+                {accounts.length
+                  ? 'Select a destination account to enable PST import.'
+                  : 'Add your company mail account before importing a PST.'}
+              </p>
+            )}
             <button
-              disabled={busy || !this.state.importAccount}
-              onClick={() =>
-                this.perform(async () => {
-                  const result = await MailBridge.importOutlook(this.state.importAccount);
-                  if (result)
-                    this.setState({
-                      message: `Imported ${result.count} messages. ${result.warnings} messages could not be exported; keep your original PST.`,
-                    });
-                })
-              }
+              disabled={busy || !importAccount}
+              onClick={() => this.importOutlook(importAccount)}
             >
-              Import Outlook PST
+              {importing ? 'Importing Outlook PST…' : 'Import Outlook PST'}
             </button>
-            {status.importProgress && (
+            {importing && (
+              <button
+                onClick={() => {
+                  MailBridge.cancelOutlookImport();
+                  this.setState({
+                    importMessage: 'Canceling import. Already imported messages will be kept.',
+                  });
+                }}
+              >
+                Cancel import
+              </button>
+            )}
+            {importMessage && (
+              <div className="mb-feedback" role={importError ? 'alert' : 'status'}>
+                {importMessage}
+              </div>
+            )}
+            {importing && status.importProgress && (
               <p>
                 {status.importProgress.count} messages imported · {status.importProgress.warnings}{' '}
                 export warnings

@@ -131,6 +131,33 @@ const { execFileSync } = require('node:child_process');
     const clippedTabs = await preferences.getByRole('tab').locator('.name').evaluateAll(labels => labels.filter(label => label.scrollWidth > label.clientWidth + 1 || label.scrollHeight > label.clientHeight + 1).map(label => label.textContent));
     assert.deepEqual(clippedTabs, [], 'Settings tab labels must remain fully visible');
     await preferences.screenshot({ path: 'mailbridge-artifacts/windows-retention-settings.png' });
+    // Exercise the packaged import UI with a controlled exporter response; CI has no Outlook profile.
+    await preferences.evaluate(() => {
+      const controller = require(AppEnv.getLoadSettings().resourcePath + '/src/mailbridge/controller').default;
+      window._pstUiRestore = { controller, importOutlook: controller.importOutlook,
+        cancelOutlookImport: controller.cancelOutlookImport, available: controller.outlookImportAvailable };
+      controller.outlookImportAvailable = () => true;
+      controller.importOutlook = async (id, progress) => {
+        progress('Copying PST: 37% (5.9 of 16.0 GB). Your original is unchanged.');
+        return new Promise((resolve, reject) => { window._pstUiReject = reject; });
+      };
+      controller.cancelOutlookImport = () => window._pstUiReject(new Error('Import canceled. Any messages already imported are kept.'));
+    });
+    const importButton = preferences.getByRole('button', { name: 'Import Outlook PST', exact: true });
+    await expect(importButton).toBeEnabled();
+    await importButton.click();
+    await expect(preferences.getByText('Copying PST: 37% (5.9 of 16.0 GB). Your original is unchanged.', { exact: true })).toBeVisible();
+    await expect(preferences.getByRole('button', { name: 'Importing Outlook PST…', exact: true })).toBeDisabled();
+    await preferences.waitForTimeout(250);
+    await preferences.screenshot({ path: 'mailbridge-artifacts/windows-pst-import-progress.png' });
+    await preferences.getByRole('button', { name: 'Cancel import', exact: true }).click();
+    await expect(importButton).toBeEnabled();
+    await expect(preferences.getByRole('alert').filter({ hasText: 'Import canceled.' })).toBeVisible();
+    await preferences.evaluate(() => {
+      const { controller, importOutlook, cancelOutlookImport, available } = window._pstUiRestore;
+      Object.assign(controller, { importOutlook, cancelOutlookImport, outlookImportAvailable: available });
+      delete window._pstUiRestore; delete window._pstUiReject;
+    });
     const tabNames = await preferences.getByRole('tab').allTextContents();
     for (const tabName of tabNames) {
       await preferences.getByRole('tab', { name: tabName.trim(), exact: true }).click();
