@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 (async () => {
   const native = path.resolve('mailbridge-artifacts/native');
   const scenario = process.env.MAILBRIDGE_WORKSPACE_PROFILE ? null : fs.readdirSync(native).find(name => name.startsWith('test_two_pcs_keep_imap_mail'));
@@ -18,6 +19,9 @@ const path = require('node:path');
       settings: { imap_host: '127.0.0.1', imap_port: 65530, imap_username: 'test', imap_security: 'none', smtp_host: '127.0.0.1', smtp_port: 65530, smtp_username: 'test', smtp_security: 'none' },
       autoaddress: { type: 'bcc', value: '' }, aliases: [], authedAt: 0, syncState: 'sync_error', __cls: 'Account' }],
   } }));
+  execFileSync(process.platform === 'win32' ? 'python' : 'python3', [
+    path.resolve('test/mailbridge/seed-workspace-folders.py'), path.join(config, 'edgehill.db'), id,
+  ]);
   const binary = process.env.MAILBRIDGE_WORKSPACE_BINARY || path.resolve('app/dist/MailBridge-win32-x64/MailBridge.exe');
   const args = process.env.MAILBRIDGE_WORKSPACE_BINARY ? [path.resolve('app'), '--dev', '--config-dir-path', config] : ['--config-dir-path', config];
   const application = await electron.launch({ executablePath: binary, args, env: { ...process.env, PLAYWRIGHT: '1' }, timeout: 60000 });
@@ -69,6 +73,18 @@ const path = require('node:path');
       assert.ok(row.inset >= 10, `${row.name}: icon must have room inside its selection background`);
       assert.ok(row.rightInset >= 9, `${row.name}: label or unread badge must have right padding`);
     }
+    const branch = name => page.locator(`.account-sidebar .name[title="${name}"]`).locator('xpath=ancestor::*[@role="treeitem"][1]');
+    for (const name of ['Projects', 'Design']) {
+      const folder = branch(name);
+      if (await folder.getAttribute('aria-expanded') === 'false') await folder.locator('> .item-container > .disclosure-triangle').click();
+    }
+    const nestedIcons = [];
+    for (const name of ['Projects', 'Design', 'Review']) nestedIcons.push((await branch(name).locator('> .item-container > .item .icon').boundingBox()).x);
+    assert.equal(nestedIcons[1] - nestedIcons[0], 16, 'Child folders must be visibly indented');
+    assert.equal(nestedIcons[2] - nestedIcons[1], 16, 'Deeper folders must retain their indentation');
+    await page.screenshot({ path: 'mailbridge-artifacts/windows-nested-folders.png' });
+    await branch('Projects').locator('> .item-container > .disclosure-triangle').click();
+    await page.locator('.account-sidebar .scroll-region-content').evaluateAll(elements => elements.forEach(element => { element.scrollTop = 0; }));
     const tabs = page.locator('.mb-office-tabs');
     await tabs.getByRole('button', { name: 'View', exact: true }).click();
     await page.getByRole('button', { name: 'Message list only', exact: true }).click();
