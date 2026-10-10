@@ -170,7 +170,11 @@ class SignatureEditor extends React.Component<SignatureEditorProps, SignatureEdi
         </div>
 
         <div className="section">
-          <SignatureTemplatePicker resolvedData={resolvedData} onChange={this._onDataFieldChange} />
+          <SignatureTemplatePicker
+            resolvedData={resolvedData}
+            disabled={!this.props.signature}
+            onChange={this._onDataFieldChange}
+          />
         </div>
 
         {!resolvedData.templateName

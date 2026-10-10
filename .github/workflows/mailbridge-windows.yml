@@ -222,5 +222,7 @@ jobs:
             app/dist/mailbridge-smoke.log
             mailbridge-artifacts/desktop-tests.log
             mailbridge-artifacts/desktop-junit/*.xml
+            mailbridge-artifacts/upgrade-failure.json
+            mailbridge-artifacts/upgrade-verification.txt
             mailbridge-artifacts/windows-*.png
           if-no-files-found: ignore

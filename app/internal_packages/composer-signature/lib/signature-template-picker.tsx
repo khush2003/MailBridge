@@ -4,11 +4,12 @@ import Templates from './templates';
 
 export default class SignatureTemplatePicker extends React.Component<{
   resolvedData: any;
+  disabled?: boolean;
   onChange: (e: { target: { id: string; value: string } }) => void;
 }> {
   _el: HTMLElement;
 
-  _onClickItem = (event: React.MouseEvent<HTMLDivElement>) => {
+  _onClickItem = (event: React.MouseEvent<HTMLButtonElement>) => {
     const value = event.currentTarget.dataset.value;
     this.props.onChange({ target: { id: 'templateName', value } });
   };
@@ -50,7 +51,11 @@ export default class SignatureTemplatePicker extends React.Component<{
     return (
       <div ref={(el) => (this._el = el)} className="signature-template-picker">
         {Templates.map((t, idx) => (
-          <div
+          <button
+            type="button"
+            aria-label={`${localized('Signature layout')}: ${t.name}`}
+            aria-pressed={t.name === resolvedData.templateName}
+            disabled={this.props.disabled}
             key={idx}
             data-value={t.name}
             className={`option ${t.name === resolvedData.templateName && 'active'}`}
@@ -59,15 +64,19 @@ export default class SignatureTemplatePicker extends React.Component<{
             <div className="centered">
               <div className="preview">{t(resolvedData)}</div>
             </div>
-          </div>
+          </button>
         ))}
-        <div
+        <button
+          type="button"
+          aria-label={localized('Raw HTML')}
+          aria-pressed={!resolvedData.templateName}
+          disabled={this.props.disabled}
           data-value={null}
           className={`option ${!resolvedData.templateName && 'active'}`}
           onClick={this._onClickItem}
         >
           <div className="centered">{localized('Raw HTML')}</div>
-        </div>
+        </button>
       </div>
     );
   }

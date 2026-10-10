@@ -300,6 +300,14 @@ const { execFileSync } = require('node:child_process');
     for (const tabName of tabNames) {
       await preferences.getByRole('tab', { name: tabName.trim(), exact: true }).click();
       await preferences.waitForTimeout(200);
+      if(tabName.trim()==='Signatures'){
+        const gallery=preferences.locator('.signature-template-picker');
+        const raw=gallery.getByRole('button',{name:'Raw HTML',exact:true});
+        await expect(raw).toBeInViewport({ratio:1});
+        const bounds=await gallery.boundingBox();
+        const clipped=await gallery.getByRole('button').evaluateAll((buttons,right)=>buttons.filter(b=>b.getBoundingClientRect().right>right+1).length,bounds.x+bounds.width);
+        assert.equal(clipped,0,'All signature layouts must fit inside their settings gallery');
+      }
       await preferences.screenshot({ animations: 'disabled', path: `mailbridge-artifacts/windows-settings-${tabName.trim().replace(/[^a-zA-Z0-9]/g, '-')}.png` });
     }
     await preferences.getByRole('tab', { name: 'General', exact: true }).click();
