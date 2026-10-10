@@ -32,6 +32,13 @@ describe('SignatureStore', function signatureStore() {
     SignatureStore.activate();
   });
 
+  it('starts new accounts without a promotional signature', () => {
+    (AppEnv.config.get as any).andCallFake(() => undefined);
+    SignatureStore.activate();
+    expect(SignatureStore.getSignatures()).toEqual({});
+    expect(SignatureStore.getDefaults()).toEqual({});
+  });
+
   describe('signatureForAccountId', () => {
     it('should return the default signature for that account', () => {
       const titleForAccount1 = SignatureStore.signatureForEmail('one@nylas.com').title;

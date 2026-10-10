@@ -472,3 +472,64 @@ body:has(.mb-office-header) .notifications {
     transition: none;
   }
 }
+
+body.theme-ui-mailbridge .button-dropdown {
+  .primary-item,
+  .only-item,
+  .secondary-picker {
+    background: #f8fafd;
+    border: 1px solid #dce3eb;
+    box-shadow: none;
+    cursor: pointer;
+    transition: background-color 100ms ease;
+    position: static;
+    &:before {
+      display: none;
+    }
+    &:hover {
+      background: #edf3fa;
+    }
+  }
+  .primary-item {
+    border-radius: 5px 0 0 5px;
+    border-right: 0;
+  }
+  .secondary-picker {
+    border-radius: 0 5px 5px 0;
+  }
+  .only-item {
+    border-radius: 5px;
+  }
+  &.btn-emphasis {
+    .primary-item,
+    .only-item,
+    .secondary-picker {
+      background: #145ea8;
+      border-color: #145ea8;
+      color: white;
+      box-shadow: none;
+      &:hover {
+        background: #0b4d8d;
+        box-shadow: none;
+      }
+      &:active {
+        background: #073e73;
+      }
+      img.content-mask {
+        background-color: white;
+      }
+    }
+    .secondary-picker {
+      border-left: 1px solid fade(white, 30%);
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.theme-ui-mailbridge .button-dropdown {
+    .primary-item,
+    .only-item,
+    .secondary-picker {
+      transition: none;
+    }
+  }
+}

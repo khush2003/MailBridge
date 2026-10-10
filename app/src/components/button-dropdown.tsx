@@ -100,9 +100,22 @@ export class ButtonDropdown extends React.Component<ButtonDropdownProps, ButtonD
           style={this.props.style}
         >
           <div
+            role="button"
+            tabIndex={0}
             className="only-item"
             title={this.props.primaryTitle || ''}
+            aria-label={this.props.primaryTitle}
+            aria-haspopup="menu"
+            aria-expanded={this.state.open !== false}
             onClick={this.toggleDropdown}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                this.toggleDropdown();
+              } else if (e.key === 'Escape') {
+                this.setState({ open: false });
+              }
+            }}
           >
             {this.props.primaryItem}
             <RetinaImg
