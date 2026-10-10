@@ -313,6 +313,11 @@ const { execFileSync } = require('node:child_process');
     await expect(preferences.getByRole('tab', { name: 'Appearance', exact: true })).toHaveAttribute('aria-selected', 'true');
     await preferences.evaluate(() => require('mailspring-exports').Actions.popSheet());
     await search.focus();
+    await page.evaluate(async () => {
+      const { FeatureUsageStore } = require('mailspring-exports');
+      await FeatureUsageStore.displayUpgradeModal('send-later', {headerText:'Legacy quota',rechargeText:'Legacy quota',iconUrl:''});
+    });
+    await expect(page.getByRole('dialog')).toHaveCount(0);
     await page.evaluate(() => AppEnv.commands.dispatch('window:launch-theme-picker'));
     await expect(page.getByRole('dialog')).toBeVisible();
     const closeDialog = page.getByRole('button', { name: 'Close dialog', exact: true });

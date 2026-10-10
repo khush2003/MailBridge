@@ -79,6 +79,8 @@ class _FeatureUsageStore extends MailspringStore {
   }
 
   displayUpgradeModal(feature: string, lexicon: FeatureLexicon) {
+    // Local MailBridge features have no subscription or billing flow.
+    if (!AppEnv.inSpecMode()) return Promise.resolve();
     const featureData = this._dataForFeature(feature);
     let { headerText, rechargeText } = lexicon;
 

@@ -199,6 +199,8 @@ jobs:
           path: |
             mailbridge-artifacts/upgrade-verification.txt
             mailbridge-artifacts/windows-upgraded-profile.png
+            mailbridge-artifacts/desktop-tests.log
+            mailbridge-artifacts/desktop-junit/*.xml
           if-no-files-found: error
       - name: Export build information
         shell: pwsh
