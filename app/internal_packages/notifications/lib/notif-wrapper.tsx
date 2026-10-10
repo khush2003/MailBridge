@@ -12,7 +12,7 @@ export default class NotifWrapper extends React.Component {
 
   componentDidMount() {
     this.observer = new MutationObserver(this.update);
-    this.observer.observe(ReactDOM.findDOMNode(this), { childList: true });
+    this.observer.observe(ReactDOM.findDOMNode(this), { childList: true, subtree: true });
     this.update(); // Necessary if notifications are already mounted
   }
 

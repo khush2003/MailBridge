@@ -144,12 +144,18 @@ export default class MailsyncBridge {
     });
   }
 
-  _mailbridgeRequests = new Map<string, { resolve: (result: any) => void; reject: (error: Error) => void; timeout: any }>();
+  _mailbridgeRequests = new Map<
+    string,
+    { resolve: (result: any) => void; reject: (error: Error) => void; timeout: any }
+  >();
 
   mailbridgeRequest(accountId: string, packet: any): Promise<any> {
     return new Promise((resolve, reject) => {
       const id = crypto.randomUUID();
-      const timeout = setTimeout(() => { this._mailbridgeRequests.delete(id); reject(new Error('Archive engine request timed out')); }, 90000);
+      const timeout = setTimeout(() => {
+        this._mailbridgeRequests.delete(id);
+        reject(new Error('Archive engine request timed out'));
+      }, 90000);
       this._mailbridgeRequests.set(id, { resolve, reject, timeout });
       this.sendMessageToAccount(accountId, { ...packet, type: 'mailbridge', id });
     });
@@ -535,6 +541,9 @@ export default class MailsyncBridge {
           continue;
         }
         if (task.error != null) {
+          if (['mail-retention-incomplete', 'server-cleanup-disabled'].includes(task.error.key)) {
+            MailBridge.publish({ notice: task.error.debuginfo, noticeAt: Date.now() });
+          }
           task.onError(task.error);
         } else {
           task.onSuccess();

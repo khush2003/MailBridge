@@ -7,7 +7,6 @@ import {
   MailboxPerspective,
   FocusedPerspectiveStore,
   SyncbackCategoryTask,
-  DestroyCategoryTask,
   GetManyRFC2822Task,
   CategoryStore,
   Actions,
@@ -49,37 +48,6 @@ const toggleItemCollapsed = function (item: ISidebarItem) {
     return;
   }
   SidebarActions.setKeyCollapsed(item.id, !isItemCollapsed(item.id));
-};
-
-const onDeleteItem = function (item: ISidebarItem) {
-  if (item.deleted === true) {
-    return;
-  }
-  const category = item.perspective.category();
-  if (!category) {
-    return;
-  }
-
-  const response = require('@electron/remote').dialog.showMessageBoxSync({
-    type: 'info',
-    message: localized('Are you sure?'),
-    detail: localized(
-      'Deleting folders and labels cannot be undone and it may take a few minutes for changes to sync to Mailspring.'
-    ),
-    buttons: [localized('Delete'), localized('Cancel')],
-    defaultId: 0,
-  });
-
-  if (response !== 0) {
-    return;
-  }
-
-  Actions.queueTask(
-    new DestroyCategoryTask({
-      path: category.path,
-      accountId: category.accountId,
-    })
-  );
 };
 
 const EXCLUDED_EXPORT_ROLES = new Set(['drafts', 'starred', 'unread']);
@@ -309,7 +277,7 @@ export default class SidebarItem {
         selected: isItemSelected(perspective),
         collapsed: collapsed != null ? collapsed : true,
         counterStyle,
-        onDelete: opts.deletable ? onDeleteItem : undefined,
+        onDelete: undefined,
         onEdited: opts.editable ? onEditItem : undefined,
         onExport: opts.exportable ? onExportFolder : undefined,
         onExportMbox: opts.exportable ? onExportMboxFolder : undefined,

@@ -169,7 +169,15 @@ export class ThreadSearchBar extends Component<ThreadSearchBarProps, ThreadSearc
     }
 
     if (promises.length) {
-      await Promise.all(promises);
+      try {
+        await Promise.all(promises);
+      } catch (error) {
+        if (generation === this._suggestionGeneration) {
+          AppEnv.reportError(error);
+          this._setSuggestionState([]);
+        }
+        return;
+      }
       if (generation === this._suggestionGeneration) this._setSuggestionState(suggestions);
     } else {
       this._setSuggestionState(suggestions);

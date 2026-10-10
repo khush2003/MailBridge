@@ -30,12 +30,12 @@ export default class AccountErrorNotification extends React.Component<
   }
 
   componentWillUnmount() {
-    this.unlisten();
+    this.unlisten?.();
+    clearTimeout(this._checkingTimeout);
   }
 
   _onContactSupport = (erroredAccount: Account) => {
-    // Pre-fill a new topic in the community forum's Sync Issues category.
-    let url = 'https://community.getmailspring.com/new-topic?category=sync';
+    let url = 'https://github.com/khush2003/MailBridge/issues/new?';
     if (erroredAccount) {
       const { syncError } = erroredAccount;
       if (syncError != null) {
@@ -71,7 +71,7 @@ export default class AccountErrorNotification extends React.Component<
   render() {
     const erroredAccounts = this.state.accounts.filter((a) => a.hasSyncStateError());
     const checkAgainLabel = this.state.checking
-      ? `${localized('Checking')}...`
+      ? `${localized('Checking')}…`
       : localized('Check Again');
     let title;
     let subtitle;

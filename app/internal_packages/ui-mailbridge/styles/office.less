@@ -431,3 +431,44 @@ body:has(.mb-office-header) #message-list .message-item-wrap {
 body:has(.mb-office-header) .nav-rail {
   width: var(--mailbridge-sidebar-width, 190px);
 }
+body:has(.mb-office-header) .notifications {
+  background: #f8fafd;
+  box-shadow: none;
+  .notification {
+    border: 1px solid #dce3eb;
+    background: #f0f5fb;
+    color: #27394d;
+    border-radius: 6px;
+    margin: 6px;
+  }
+  .notification.error {
+    background: #fff7f3;
+    border-color: #ecd6c9;
+    color: #7c3f21;
+  }
+  .notification .title {
+    font-size: 11px;
+    line-height: 1.5;
+    padding: 10px;
+    overflow-wrap: anywhere;
+  }
+  .notification .icon {
+    filter: brightness(0.5);
+    opacity: 0.7;
+  }
+  .notification .action {
+    font-size: 11px;
+    padding: 7px;
+    border-color: #ecd6c9;
+    transition: background-color 100ms ease;
+  }
+  .notification .action:hover {
+    background: #f6e7dc;
+    box-shadow: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  body:has(.mb-office-header) .notifications .action {
+    transition: none;
+  }
+}

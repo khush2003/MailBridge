@@ -32,7 +32,7 @@ export class Task extends Model {
 
   status: string;
   source: string;
-  error: string;
+  error: { key: string; debuginfo: string; what?: string; retryable?: boolean; offline?: boolean };
 
   /** Set in subclasses to enable undo support. Defaults to falsy (undefined). */
   canBeUndone: boolean;

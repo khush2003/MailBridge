@@ -105,7 +105,7 @@ export default class Notification extends React.Component<NotificationProps, Not
   render() {
     if (this.state.isDismissed) return <span />;
 
-    const actions = this.props.actions || [];
+    const actions = [...(this.props.actions || [])];
 
     if (this.props.isDismissable) {
       actions.push({
@@ -124,7 +124,9 @@ export default class Notification extends React.Component<NotificationProps, Not
         className += ' loading';
       }
       return (
-        <div
+        <button
+          type="button"
+          disabled={this.state.loadingActions.includes(id)}
           key={id}
           id={id}
           className={className}
@@ -132,7 +134,7 @@ export default class Notification extends React.Component<NotificationProps, Not
           {...action.props}
         >
           {action.label}
-        </div>
+        </button>
       );
     });
 

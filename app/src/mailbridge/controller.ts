@@ -19,7 +19,12 @@ class MailBridgeController extends EventEmitter {
   publicStatus: any = { phase: 'setup', running: false, retained: 0, pending: 0, peers: [] };
   configurationVersion = '';
   defaultDevice = crypto.randomUUID();
-  retentionStats = { unretained: 0, mailSyncBusy: false, mailSyncInitialized: false };
+  retentionStats = {
+    unretained: 0,
+    mailSyncBusy: false,
+    mailSyncInitialized: false,
+    captureCheckedAt: 0,
+  };
   constructor() {
     super();
     this.root = path.join(AppEnv.getLoadSettings().configDirPath, 'mailbridge');
@@ -185,6 +190,14 @@ class MailBridgeController extends EventEmitter {
       if (!Number.isFinite(value.heartbeat) || Date.now() - value.heartbeat > 60000) {
         return unavailable(value, 'Mail sync is not running. Open the main mail window.');
       }
+      if (Date.now() - (value.captureCheckedAt || 0) > 60000) {
+        return {
+          ...value,
+          localCaptureReady: false,
+          safeToClear: false,
+          mailSyncInitialized: false,
+        };
+      }
       return value;
     } catch {
       return unavailable(
@@ -203,7 +216,9 @@ class MailBridgeController extends EventEmitter {
     };
     const config = this.settings();
     this.publicStatus.peerSyncEnabled = this.peerSyncEnabled();
+    const captureFresh = Date.now() - this.retentionStats.captureCheckedAt <= 60000;
     this.publicStatus.localCaptureReady =
+      captureFresh &&
       !this.importing &&
       !this.publicStatus.error &&
       AccountStore.accounts().length > 0 &&
@@ -213,6 +228,7 @@ class MailBridgeController extends EventEmitter {
       this.publicStatus.retained > 0 &&
       AccountStore.accounts().every((account) => account.syncState === 'ok');
     this.publicStatus.safeToClear =
+      captureFresh &&
       ['connected', 'folder-ready'].includes(this.publicStatus.phase) &&
       !this.importing &&
       !this.publicStatus.error &&
@@ -249,7 +265,7 @@ class MailBridgeController extends EventEmitter {
     try {
       const config = this.settings();
       if (!this.peerSyncEnabled() || !config.workspace || !config.driveAccount) {
-        const records = [];
+        let retained = 0;
         let unretained = 0;
         let mailSyncBusy = false;
         let mailSyncInitialized = AccountStore.accounts().length > 0;
@@ -258,23 +274,25 @@ class MailBridgeController extends EventEmitter {
             mailSyncInitialized = false;
             continue;
           }
-          const result = await this.bridge.mailbridgeRequest(account.id, { operation: 'list' });
-          records.push(...result.records);
+          const result = await this.bridge.mailbridgeRequest(account.id, { operation: 'stats' });
+          retained += result.retained || 0;
           unretained += result.unretained || 0;
           mailSyncBusy ||= result.mailSyncBusy;
           mailSyncInitialized &&= result.mailSyncInitialized === true;
         }
-        this.retentionStats = { unretained, mailSyncBusy, mailSyncInitialized };
+        this.retentionStats = {
+          unretained,
+          mailSyncBusy,
+          mailSyncInitialized,
+          captureCheckedAt: Date.now(),
+        };
         const accountError = AccountStore.accounts().find(
           (account) => account.syncState === 'sync_error'
         );
         this.publish({
           phase: accountError ? 'error' : this.peerSyncEnabled() ? 'setup' : 'local',
           running: false,
-          retained: Math.max(
-            new Set(records.map((record) => record.key)).size,
-            this.retainedOnDisk()
-          ),
+          retained: Math.max(retained, this.retainedOnDisk()),
           pending: 0,
           peers: [],
           quota: null,
@@ -322,7 +340,12 @@ class MailBridgeController extends EventEmitter {
                 mailSyncBusy ||= result.mailSyncBusy;
                 mailSyncInitialized &&= result.mailSyncInitialized === true;
               }
-              this.retentionStats = { unretained, mailSyncBusy, mailSyncInitialized };
+              this.retentionStats = {
+                unretained,
+                mailSyncBusy,
+                mailSyncInitialized,
+                captureCheckedAt: Date.now(),
+              };
               return records;
             },
             import: async (descriptor: any, state: any) => {

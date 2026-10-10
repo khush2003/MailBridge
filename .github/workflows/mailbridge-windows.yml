@@ -81,7 +81,7 @@ jobs:
           python -m pip install -r mailsync/test/requirements.txt
           $env:MAILSYNC_BIN = (Resolve-Path app/mailsync.exe).Path
           New-Item -ItemType Directory -Force mailbridge-artifacts | Out-Null
-          python -m pytest mailsync/test/test_mailbridge.py --servers fake -n 0 -q --basetemp=mailbridge-artifacts/native
+          python -m pytest mailsync/test/test_mailbridge.py mailsync/test/test_log_rotation.py mailsync/test/test_calendar_safety.py --servers fake -n 0 -q --basetemp=mailbridge-artifacts/native
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Verify Outlook export MIME serialization
         run: powershell.exe -NoProfile -File test/mailbridge/outlook-export.ps1

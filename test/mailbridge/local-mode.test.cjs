@@ -25,7 +25,7 @@ function fixture(t, accounts = [{ id: 'a', emailAddress: 'mail@example.test', sy
 test('a new profile retains mail without requiring Drive or pairing', async t => {
   const controller = fixture(t);
   assert.equal(controller.peerSyncEnabled(), false);
-  controller.bridge = { _clients: { a: {} }, mailbridgeRequest: async () => ({ records: [{ key: 'mail' }], unretained: 0, mailSyncInitialized: true, mailSyncBusy: false }) };
+  controller.bridge = { _clients: { a: {} }, mailbridgeRequest: async () => ({ retained: 1, unretained: 0, mailSyncInitialized: true, mailSyncBusy: false }) };
   await controller.tick();
   const status = controller.status();
   assert.equal(status.phase, 'local');
@@ -79,5 +79,19 @@ test('stopped or unreadable status never authorizes mailbox cleanup', t => {
   }
   fs.writeFileSync(file, '{broken');
   assert.equal(controller.status().safeToClear, false);
+  assert.equal(controller.status().localCaptureReady, false);
+});
+
+test('an alive main window cannot authorize cleanup using an outdated native capture scan', async t => {
+  const controller = fixture(t);
+  controller.bridge = { _clients: { a: {} }, mailbridgeRequest: async () => ({ retained: 1, unretained: 0, mailSyncInitialized: true, mailSyncBusy: false }) };
+  await controller.tick();
+  assert.equal(controller.status().localCaptureReady, true);
+  const file = path.join(controller.root, 'status.json');
+  fs.writeFileSync(file, JSON.stringify({ ...controller.status(), heartbeat: Date.now(), captureCheckedAt: Date.now() - 61000, safeToClear: true }));
+  assert.equal(controller.status().localCaptureReady, false);
+  assert.equal(controller.status().safeToClear, false);
+  controller.retentionStats.captureCheckedAt = Date.now() - 61000;
+  controller.publish({ phase: 'connected' });
   assert.equal(controller.status().localCaptureReady, false);
 });

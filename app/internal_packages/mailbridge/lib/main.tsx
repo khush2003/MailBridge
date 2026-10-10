@@ -94,6 +94,7 @@ class ArchiveStatus extends React.Component<Record<string, never>, { status: any
   }
   render() {
     const { status } = this.state;
+    const notice = Date.now() - status.noticeAt < 12000 ? status.notice : null;
     const text =
       status.phase === 'local'
         ? `${status.retained || 0} messages retained on this PC`
@@ -110,12 +111,14 @@ class ArchiveStatus extends React.Component<Record<string, never>, { status: any
       <div className="mb-office-statusbar">
         <span>MailBridge</span>
         <button
-          className={`mailbridge-status ${status.phase}`}
-          title={status.error || 'Local retention and optional Drive sync'}
+          className={`mailbridge-status ${status.phase} ${notice ? 'has-notice' : ''}`}
+          title={notice || status.error || 'Local retention and optional Drive sync'}
           onClick={preferences}
         >
           <span className="mailbridge-status-dot" />
-          {text}
+          <span className="mb-status-label" aria-live="polite">
+            {notice || text}
+          </span>
         </button>
         <span className="mb-status-end">
           {MailBridge.peerSyncEnabled() ? 'IMAP + archive sync' : 'IMAP · local retention'}
