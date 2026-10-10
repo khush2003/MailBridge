@@ -1,3 +1,4 @@
+import { showMailBridgeMenu } from '../mailbridge/context-menu';
 /* eslint global-require:0 */
 
 import { Utils, localized } from 'mailspring-exports';
@@ -320,12 +321,50 @@ class OutlineViewItem extends Component<OutlineViewItemProps, OutlineViewItemSta
 
   _onShowContextMenu = (event: MouseEvent) => {
     event.stopPropagation();
-    this._buildContextMenu().popup({});
+    event.preventDefault();
+    const menu = this._buildContextMenu();
+    showMailBridgeMenu(
+      menu.items.map((item) => ({
+        type: item.type === 'separator' ? 'separator' : undefined,
+        label: item.label,
+        enabled: item.enabled,
+        click: () => item.click(),
+        icon: item.label.match(/read/i)
+          ? 'mail'
+          : item.label.match(/rename/i)
+            ? 'edit'
+            : item.label.match(/delete/i)
+              ? 'delete'
+              : item.label.match(/export/i)
+                ? 'download'
+                : 'folder',
+      })),
+      { x: event.clientX, y: event.clientY }
+    );
   };
 
   _onMenuButtonClick = (event: React.MouseEvent) => {
     event.stopPropagation();
-    this._buildContextMenu().popup({});
+    event.preventDefault();
+    const menu = this._buildContextMenu();
+    showMailBridgeMenu(
+      menu.items.map((item) => ({
+        type: item.type === 'separator' ? 'separator' : undefined,
+        label: item.label,
+        enabled: item.enabled,
+        click: () => item.click(),
+        icon: item.label.match(/read/i)
+          ? 'mail'
+          : item.label.match(/rename/i)
+            ? 'edit'
+            : item.label.match(/delete/i)
+              ? 'delete'
+              : item.label.match(/export/i)
+                ? 'download'
+                : 'folder',
+      })),
+      { x: event.clientX, y: event.clientY }
+    );
   };
 
   // Renderers

@@ -4,9 +4,6 @@ import { Account } from 'mailspring-exports';
 import OnboardingStore from './onboarding-store';
 import PageTopBar from './page-top-bar';
 
-import WelcomePage from './page-welcome';
-import TutorialPage from './page-tutorial';
-import AuthenticatePage from './page-authenticate';
 import AccountChoosePage from './page-account-choose';
 import AccountSettingsPage from './page-account-settings';
 import AccountSettingsPageGmail from './page-account-settings-gmail';
@@ -17,9 +14,9 @@ import InitialPreferencesPage from './page-initial-preferences';
 import AccountSettingsPageOutlook from './page-account-settings-outlook';
 
 const PageComponents = {
-  welcome: WelcomePage,
-  tutorial: TutorialPage,
-  authenticate: AuthenticatePage,
+  welcome: AccountChoosePage,
+  tutorial: AccountChoosePage,
+  authenticate: AccountChoosePage,
   'account-choose': AccountChoosePage,
   'account-settings': AccountSettingsPage,
   'account-settings-gmail': AccountSettingsPageGmail,

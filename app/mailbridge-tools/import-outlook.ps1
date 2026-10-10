@@ -1,6 +1,8 @@
-param([Parameter(Mandatory=$true)][string]$PstPath, [Parameter(Mandatory=$true)][string]$OutputDirectory)
+param([Parameter(Mandatory=$true)][string]$PstPath, [Parameter(Mandatory=$true)][string]$OutputDirectory, [string]$CancelPath='')
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
+function ReleaseCom($Value) { if ($null -ne $Value -and [Runtime.InteropServices.Marshal]::IsComObject($Value)) { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($Value) } }
+function CheckCancellation { if ($CancelPath -and (Test-Path -LiteralPath $CancelPath)) { throw 'Import canceled. Already imported messages are kept.' } }
 function Clean([string]$Value) { return ($Value -replace '[\r\n]', ' ').Trim() }
 function Encoded([string]$Value) { return '=?UTF-8?B?' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((Clean $Value))) + '?=' }
 function Property($Item, [string]$Tag) { try { return $Item.PropertyAccessor.GetProperty('http://schemas.microsoft.com/mapi/proptag/' + $Tag) } catch { return $null } }
@@ -87,14 +89,16 @@ function Walk($Folder, [string]$Path) {
   if ($Folder.EntryID -eq $script:SentId) { $role='sent'; $Path='Sent' }
   if ($Folder.EntryID -eq $script:TrashId) { $role='trash'; $Path='Trash' }
   for ($i=1; $i -le $Folder.Items.Count; $i++) {
+    CheckCancellation
     $item = $Folder.Items.Item($i)
-    if ($item.Class -eq 43 -and $item.Sent) {
+    try { if ($item.Class -eq 43 -and $item.Sent) {
       try { ExportMail $item $Path $role } catch { @{warning='A message could not be exported'; folder=$Path; detail=$_.Exception.Message} | ConvertTo-Json -Compress }
-    }
+    } } finally { ReleaseCom $item }
   }
   for ($i=1; $i -le $Folder.Folders.Count; $i++) {
+    CheckCancellation
     $child=$Folder.Folders.Item($i)
-    Walk $child ($Path + '/' + $child.Name)
+    try { Walk $child ($Path + '/' + $child.Name) } finally { ReleaseCom $child }
   }
 }
 $added=$false; $root=$null
@@ -118,6 +122,9 @@ try {
   try { $script:InboxId=$store.GetDefaultFolder(6).EntryID } catch { $script:InboxId='' }
   try { $script:SentId=$store.GetDefaultFolder(5).EntryID } catch { $script:SentId='' }
   try { $script:TrashId=$store.GetDefaultFolder(3).EntryID } catch { $script:TrashId='' }
-  for ($i=1; $i -le $root.Folders.Count; $i++) { $folder=$root.Folders.Item($i); Walk $folder $folder.Name }
+  for ($i=1; $i -le $root.Folders.Count; $i++) { CheckCancellation; $folder=$root.Folders.Item($i); try { Walk $folder $folder.Name } finally { ReleaseCom $folder } }
 } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }
-finally { if ($added -and $root) { $namespace.RemoveStore($root) } }
+finally {
+  if ($added -and $root) { try { $namespace.RemoveStore($root) } catch { [Console]::Error.WriteLine('Close the temporary MailBridge PST in classic Outlook if it remains open: ' + $PstPath) } }
+  ReleaseCom $root; ReleaseCom $store; ReleaseCom $namespace; ReleaseCom $outlook
+}

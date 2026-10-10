@@ -54,7 +54,10 @@ class _PreferencesUIStore extends MailspringStore {
   setupListeners() {
     if (AppEnv.isMainWindow()) {
       this.listenTo(Actions.openPreferences, this.openPreferences);
-      ipcRenderer.on('open-preferences', this.openPreferences);
+      ipcRenderer.on('open-preferences', (_event, tabId?: string) => {
+        this.openPreferences();
+        if (this.tabs().some((tab) => tab.tabId === tabId)) this.switchPreferencesTab(tabId);
+      });
 
       this.listenTo(Actions.switchPreferencesTab, this.switchPreferencesTab);
     }

@@ -2,7 +2,7 @@ import React from 'react';
 import fs from 'fs';
 import classNames from 'classnames';
 
-import { RetinaImg } from 'mailspring-component-kit';
+import Icon, { IconName } from '../../../src/mailbridge/icon';
 import { Actions, PreferencesUIStoreTab, Utils, localized } from 'mailspring-exports';
 
 interface PreferencesTabItemProps {
@@ -40,15 +40,19 @@ class PreferencesTabItem extends React.Component<PreferencesTabItemProps> {
       active: tabId === selection.tabId,
     });
 
-    const icon = (
-      <RetinaImg
-        style={{ width: 40, height: 40 }}
-        className="tab-icon"
-        name={`icon-preferences-${tabId.toLowerCase().replace(' ', '-')}.png`}
-        fallback={`icon-preferences-general.png`}
-        mode={RetinaImg.Mode.ContentPreserve}
-      />
-    );
+    const icons: Record<string, IconName> = {
+      General: 'settings',
+      Accounts: 'mail',
+      Archive: 'archive',
+      Appearance: 'appearance',
+      Shortcuts: 'keyboard',
+      'Mail Rules': 'rules',
+      'MCP Server': 'code',
+      Folders: 'folder',
+      Signatures: 'signature',
+      Templates: 'template',
+    };
+    const icon = <Icon name={icons[tabId] || 'settings'} className="tab-icon" />;
 
     const isSelected = tabId === selection.tabId;
     return (
@@ -86,9 +90,9 @@ class PreferencesTabsBar extends React.Component<PreferencesTabBarProps> {
     const currentIdx = tabs.findIndex((t) => t.tabId === selection.tabId);
 
     let nextIdx: number | null = null;
-    if (e.key === 'ArrowRight') {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
       nextIdx = (currentIdx + 1) % tabs.length;
-    } else if (e.key === 'ArrowLeft') {
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
       nextIdx = (currentIdx - 1 + tabs.length) % tabs.length;
     } else if (e.key === 'Home') {
       nextIdx = 0;
@@ -115,16 +119,16 @@ class PreferencesTabsBar extends React.Component<PreferencesTabBarProps> {
   render() {
     return (
       <div className="container-preference-tabs">
+        <div className="mb-settings-nav-title">Settings</div>
         <div
           ref={this._listRef}
           className="preferences-tabs"
           role="tablist"
+          aria-orientation="vertical"
           aria-label={localized('Preferences tabs')}
           onKeyDown={this._onKeyDown}
         >
-          <div style={{ flex: 0.5 }} />
           {this.renderTabs()}
-          <div style={{ flex: 0.5 }} />
         </div>
       </div>
     );

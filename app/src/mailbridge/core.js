@@ -48,10 +48,10 @@ function newer(a, b) { return !b || a.clock > b.clock || (a.clock === b.clock &&
 
 // Peer import receipts prove delivery; local transport acceptance alone never authorizes collection.
 class ArchiveSync extends EventEmitter {
-  constructor({ root, workspace, key, device, transport, native, peers = [], cloudRetention = true, maxUploadBytes = 64 * 1024 * 1024 }) {
+  constructor({ root, workspace, key, device, transport, native, peers = [], cloudRetention = true, maxUploadBytes = 64 * 1024 * 1024, isCanceled = () => false }) {
     super();
     if (!/^[a-f0-9]{32}$/.test(workspace) || key.length !== 32 || !/^[a-f0-9-]{36}$/.test(device)) throw new Error('Invalid sync identity');
-    Object.assign(this, { root, workspace, key, device, transport, native, peers, cloudRetention, maxUploadBytes });
+    Object.assign(this, { root, workspace, key, device, transport, native, peers, cloudRetention, maxUploadBytes, isCanceled });
     this.journalPath = path.join(root, 'sync-journal.json');
     this.journal = fs.existsSync(this.journalPath) ? JSON.parse(fs.readFileSync(this.journalPath, 'utf8')) :
       { workspace, clock: 0, messages: {}, acknowledgements: {}, deletedCloud: {}, devices: {}, seen: {} };
@@ -61,11 +61,14 @@ class ArchiveSync extends EventEmitter {
   save() { durableWrite(this.journalPath, JSON.stringify(this.journal)); }
   updateStatus(values) { Object.assign(this.status, values); this.emit('status', { ...this.status }); }
   name(kind, id) { return `${this.workspace}-${kind}-${id}`; }
+  checkCanceled() { if (this.isCanceled()) { const error = new Error('Archive sync paused. Completed transfers and retained mail are kept.'); error.name = 'AbortError'; throw error; } }
   async put(name, data) {
+    this.checkCanceled();
     const encrypted = encode(this.key, this.workspace, name, Buffer.from(JSON.stringify(data)));
     await this.transport.put(name, encrypted);
   }
   async get(object) {
+    this.checkCanceled();
     const bytes = await this.transport.get(object.id);
     if (bytes.length > MAX_MESSAGE * 1.5) throw new Error('Remote archive object exceeds maximum size');
     return JSON.parse(decode(this.key, this.workspace, object.name, bytes).toString('utf8'));
@@ -96,8 +99,10 @@ class ArchiveSync extends EventEmitter {
     if (this.status.running) return;
     this.updateStatus({ running: true, phase: 'connecting', error: null });
     try {
+      this.checkCanceled();
       const health = await this.transport.health();
       const local = await this.native.list();
+      this.checkCanceled();
       for (const record of local) this.observe(record);
       this.save();
       const objects = await this.transport.list(`${this.workspace}-`);
@@ -111,6 +116,7 @@ class ArchiveSync extends EventEmitter {
         if (!validId(gc.key) || !validId(gc.digest) || object.name !== this.name('gc', `${gc.key}-${gc.digest}`)) throw new Error('Invalid archive checkpoint');
         this.journal.deletedCloud[`${gc.key}-${gc.digest}`] = true;
       }
+      this.checkCanceled();
       this.updateStatus({ phase: 'downloading' });
       for (const object of objects.filter(o => o.name.startsWith(this.name('mail', '')))) {
         if (this.journal.seen[object.name]) continue;
@@ -131,6 +137,7 @@ class ArchiveSync extends EventEmitter {
         this.journal.seen[object.name] = true;
         this.save();
       }
+      this.checkCanceled();
       this.updateStatus({ phase: 'uploading' });
       let uploadedBytes = 0; let uploadFailure = null;
       const reservedBytes = Math.max(8 * 1024 * 1024, Buffer.byteLength(JSON.stringify(this.journal.messages)) * 2);
@@ -235,7 +242,9 @@ class ArchiveSync extends EventEmitter {
         lastSuccess: Date.now(), quota: health.quota, error: null });
     } catch (error) {
       const pending = Object.values(this.journal.acknowledgements).filter(receipts => !this.peers.length || !this.peers.every(peer => receipts[peer])).length;
-      this.updateStatus({ phase: 'error', error: error.message, pending });
+      this.save();
+      this.updateStatus({ phase: error.name === 'AbortError' ? 'paused' : 'error', error: error.name === 'AbortError' ? null : error.message, pending });
+      if (error.name === 'AbortError') return false;
       throw error;
     } finally { this.updateStatus({ running: false }); }
   }

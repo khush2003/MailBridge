@@ -27,7 +27,7 @@ async function fixture(t, program, overrides = {}) {
       const directory = args[args.indexOf('-OutputDirectory') + 1];
       const snapshot = args[args.indexOf('-PstPath') + 1];
       assert.deepEqual(fs.readFileSync(snapshot), original);
-      return spawn(process.execPath, ['-e', program, directory]);
+      return spawn(process.execPath, ['-e', program, directory, args[args.indexOf('-CancelPath') + 1]]);
     },
     ...overrides,
   };
@@ -99,4 +99,13 @@ test('a silent Outlook exporter fails with an actionable timeout rather than dis
   const f = await fixture(t, 'setInterval(()=>{},1000);', { idleTimeoutMs: 1000 });
   await assert.rejects(importOutlookPst(f.options), /Outlook has not responded/);
   assert.deepEqual(fs.readdirSync(path.join(f.root, 'imports')), []);
+});
+
+test('cancellation allows a responsive Outlook worker to detach before removing its snapshot', async t => {
+  const f = await fixture(t, `const fs=require('fs'),path=require('path');const timer=setInterval(()=>{if(fs.existsSync(process.argv[2])){fs.writeFileSync(path.join(process.argv[1],'..','detached.marker'),'detached');clearInterval(timer);process.exit(1);}},20);`);
+  f.options.onProgress = p => { if(p.message.startsWith('Starting'))setTimeout(()=>f.abort.abort(),100); };
+  await assert.rejects(importOutlookPst(f.options), /Import canceled/);
+  assert.equal(fs.readFileSync(path.join(f.root,'detached.marker'),'utf8'),'detached');
+  assert.deepEqual(fs.readFileSync(f.source),f.original);
+  assert.deepEqual(fs.readdirSync(path.join(f.root,'imports')),[]);
 });

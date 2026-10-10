@@ -7,8 +7,9 @@ import {
   ListensToFluxStore,
   ConfigPropContainer,
 } from 'mailspring-component-kit';
-import { PreferencesUIStore } from 'mailspring-exports';
+import { PreferencesUIStore, Actions } from 'mailspring-exports';
 import PreferencesTabsBar from './preferences-tabs-bar';
+import Icon from '../../../src/mailbridge/icon';
 
 const stopPropagation = (e: CustomEvent) => {
   e.stopPropagation();
@@ -51,8 +52,10 @@ class PreferencesRoot extends React.Component<{ tab: any; tabs: any[]; selection
   componentDidUpdate(oldProps: { tab: any; tabs: any[]; selection: any }) {
     if (oldProps.tab !== this.props.tab) {
       const scrollRegion = document.querySelector('.preferences-content .scroll-region-content');
-      scrollRegion.scrollTop = 0;
-      this._focusContent();
+      if (scrollRegion) scrollRegion.scrollTop = 0;
+      if (document.activeElement?.getAttribute('role') === 'tab') {
+        document.querySelector<HTMLElement>('.preferences-tabs [aria-selected="true"]')?.focus();
+      } else this._focusContent();
     }
   }
 
@@ -79,16 +82,43 @@ class PreferencesRoot extends React.Component<{ tab: any; tabs: any[]; selection
         localHandlers={this._localHandlers}
       >
         <Flexbox direction="column">
-          <PreferencesTabsBar tabs={tabs} selection={selection} />
-          <ScrollRegion className="preferences-content">
-            <ConfigPropContainer
-              ref={(el) => {
-                this._contentComponent = el;
-              }}
+          <div className="mb-settings-appbar">
+            <button onClick={() => Actions.popSheet()} aria-label="Back to mail">
+              <Icon name="chevron" />
+              Back to mail
+            </button>
+            <span>MailBridge</span>
+            <button
+              aria-label="Minimize"
+              onClick={() => require('@electron/remote').getCurrentWindow().minimize()}
             >
-              {tab ? <TabComponent accountId={selection.accountId} /> : null}
-            </ConfigPropContainer>
-          </ScrollRegion>
+              ―
+            </button>
+            <button
+              aria-label="Close"
+              onClick={() => require('@electron/remote').getCurrentWindow().close()}
+            >
+              <Icon name="close" />
+            </button>
+          </div>
+          <Flexbox direction="row" className="mb-settings-layout">
+            <PreferencesTabsBar tabs={tabs} selection={selection} />
+            <div className="mb-settings-main">
+              <div className="mb-settings-heading">
+                <h1>{tab?.displayName || 'Settings'}</h1>
+                <p>Make MailBridge work the way you do.</p>
+              </div>
+              <ScrollRegion className="preferences-content">
+                <ConfigPropContainer
+                  ref={(el) => {
+                    this._contentComponent = el;
+                  }}
+                >
+                  {tab ? <TabComponent accountId={selection.accountId} /> : null}
+                </ConfigPropContainer>
+              </ScrollRegion>
+            </div>
+          </Flexbox>
         </Flexbox>
       </KeyCommandsRegion>
     );

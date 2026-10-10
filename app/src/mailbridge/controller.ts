@@ -1,4 +1,5 @@
 import fs from 'fs';
+import { ipcRenderer } from 'electron';
 import path from 'path';
 import crypto from 'crypto';
 import { EventEmitter } from 'events';
@@ -324,6 +325,7 @@ class MailBridgeController extends EventEmitter {
           ...config,
           key: Buffer.from(secret.key, 'base64'),
           transport: this.drive,
+          isCanceled: () => this.settings().archivePaused === true,
           native: {
             list: async () => {
               const records = [];
@@ -370,6 +372,10 @@ class MailBridgeController extends EventEmitter {
         this.publish({ phase: 'setup', error: 'Add your company mail account first' });
         return;
       }
+      if (config.archivePaused) {
+        this.publish({ phase: 'paused', running: false, error: null });
+        return;
+      }
       await this.core.run();
     } finally {
       this.ticking = false;
@@ -377,7 +383,15 @@ class MailBridgeController extends EventEmitter {
   }
   ticking = false;
   requestSync() {
-    this.bridge?.sendSyncMailNow();
+    if (!this.bridge) {
+      ipcRenderer.send('command', 'application:sync-mail');
+      return;
+    }
+    if (this.settings().archivePaused) {
+      const settings = { ...this.settings(), archivePaused: false };
+      durableWrite(this.configPath(), JSON.stringify(settings));
+    }
+    this.bridge.sendSyncMailNow();
     durableWrite(
       path.join(this.root, 'sync-request.json'),
       JSON.stringify({ requested: Date.now() })

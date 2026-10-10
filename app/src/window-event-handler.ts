@@ -101,7 +101,7 @@ export default class WindowEventHandler {
     });
 
     AppEnv.commands.add(document.body, 'window:sync-mail-now', () => {
-      AppEnv.mailsyncBridge.sendSyncMailNow();
+      require('./mailbridge/controller').default.requestSync();
     });
 
     AppEnv.commands.add(document.body, 'window:attach-to-xcode', () => {

@@ -62,7 +62,7 @@ class OnboardingStore extends MailspringStore {
       // Should only happen when the user has "signed out" of their Mailspring ID,
       // but already has accounts synced. Or is upgrading from a very old build.
       // We used to show "Welcome Back", but now just jump to sign in.
-      this._pageStack = ['authenticate'];
+      this._pageStack = ['account-choose'];
     } else {
       // Standard new user onboarding flow.
       this._pageStack = ['account-choose'];
@@ -118,7 +118,13 @@ class OnboardingStore extends MailspringStore {
   };
 
   _onMoveToPage = (page: string) => {
-    this._pageStack.push(page);
+    this._pageStack.push(
+      page === 'authenticate'
+        ? 'account-choose'
+        : page === 'initial-subscription'
+          ? 'initial-preferences'
+          : page
+    );
     this.trigger();
   };
 
@@ -155,7 +161,7 @@ class OnboardingStore extends MailspringStore {
       AppEnv.showErrorDialog({
         title: localized('Unable to Add Account'),
         message: localized(
-          'Sorry, something went wrong when this account was added to Mailspring. If you do not see the account, try linking it again. %@',
+          'Sorry, something went wrong when this account was added to MailBridge. If you do not see the account, try linking it again. %@',
           e.toString()
         ),
       });

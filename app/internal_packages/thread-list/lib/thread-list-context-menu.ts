@@ -1,3 +1,5 @@
+import { IconName } from '../../../src/mailbridge/icon';
+import { showMailBridgeMenu } from '../../../src/mailbridge/context-menu';
 /* eslint global-require: 0*/
 import {
   localized,
@@ -18,6 +20,7 @@ import {
 type TemplateItem =
   | {
       label: string;
+      icon?: IconName;
       click: () => void;
     }
   | { type: 'separator' };
@@ -38,9 +41,6 @@ export default class ThreadListContextMenu {
         this.threads = threads;
 
         return Promise.all<TemplateItem>([
-          this.findWithFrom(),
-          this.findWithSubject(),
-          { type: 'separator' },
           this.replyItem(),
           this.replyAllItem(),
           this.forwardItem(),
@@ -50,12 +50,13 @@ export default class ThreadListContextMenu {
           this.markAsReadItem(),
           this.starItem(),
           { type: 'separator' },
-          this.trashItem(),
-          this.markAsSpamItem(),
-          { type: 'separator' },
+          this.findWithFrom(),
+          this.findWithSubject(),
           this.createMailboxLinkItem(),
-          { type: 'separator' },
           this.saveAsEmlItem(),
+          { type: 'separator' },
+          this.markAsSpamItem(),
+          this.trashItem(),
         ]);
       })
       .then((menuItems) => {
@@ -81,6 +82,7 @@ export default class ThreadListContextMenu {
     }
 
     return {
+      icon: 'search',
       label: localized(`Search for`) + ' ' + from.email,
       click: () => {
         Actions.searchQuerySubmitted(`"${from.email.replace('"', '""')}"`);
@@ -95,6 +97,7 @@ export default class ThreadListContextMenu {
     const subject = this.threads[0].subject;
 
     return {
+      icon: 'search',
       label:
         localized(`Search for`) +
         ' ' +
@@ -110,6 +113,7 @@ export default class ThreadListContextMenu {
       return null;
     }
     return {
+      icon: 'reply',
       label: localized('Reply'),
       click: () => {
         Actions.composeReply({
@@ -133,6 +137,7 @@ export default class ThreadListContextMenu {
       .then((message) => {
         if (message && message.canReplyAll()) {
           return {
+            icon: 'replyAll',
             label: localized('Reply All'),
             click: () => {
               Actions.composeReply({
@@ -153,6 +158,7 @@ export default class ThreadListContextMenu {
       return null;
     }
     return {
+      icon: 'forward',
       label: localized('Forward'),
       click: () => {
         Actions.composeForward({ threadId: this.threadIds[0], popout: true });
@@ -165,6 +171,7 @@ export default class ThreadListContextMenu {
       return null;
     }
     return {
+      icon: 'forward',
       label: localized('Forward as Attachment'),
       click: async () => {
         const thread = this.threads[0];
@@ -210,6 +217,7 @@ export default class ThreadListContextMenu {
       return null;
     }
     return {
+      icon: 'archive',
       label: localized('Archive'),
       click: () => {
         const tasks = TaskFactory.tasksForArchiving({
@@ -229,6 +237,7 @@ export default class ThreadListContextMenu {
       return null;
     }
     return {
+      icon: 'delete',
       label: localized('Trash'),
       click: () => {
         const tasks = TaskFactory.tasksForMovingToTrash({
@@ -245,6 +254,7 @@ export default class ThreadListContextMenu {
     const dir = unread ? localized('Unread') : localized('Read');
 
     return {
+      icon: 'mail',
       label: localized(`Mark as %@`, dir),
       click: () => {
         Actions.queueTask(
@@ -262,6 +272,7 @@ export default class ThreadListContextMenu {
     const dir = allInSpam ? localized('Not Spam') : localized('Spam');
 
     return {
+      icon: 'shield',
       label: localized(`Mark as %@`, dir),
       click: () => {
         Actions.queueTasks(
@@ -288,6 +299,7 @@ export default class ThreadListContextMenu {
     }
 
     return {
+      icon: 'flag',
       label: label,
       click: () => {
         Actions.queueTask(
@@ -300,12 +312,13 @@ export default class ThreadListContextMenu {
     };
   }
 
-  createMailboxLinkItem() {
+  createMailboxLinkItem(): TemplateItem {
     if (this.threadIds.length !== 1 || !this.threads[0]) {
       return null;
     }
 
     return {
+      icon: 'link',
       label: localized('Copy mailbox permalink'),
       click: async () => {
         const id = this.threadIds[0];
@@ -375,9 +388,9 @@ export default class ThreadListContextMenu {
     };
   }
 
-  displayMenu() {
+  displayMenu(point?: { x: number; y: number }) {
     this.menuItemTemplate().then((template) => {
-      require('@electron/remote').Menu.buildFromTemplate(template).popup({});
+      showMailBridgeMenu(template, point);
     });
   }
 }

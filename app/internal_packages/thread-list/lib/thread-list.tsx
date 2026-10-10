@@ -222,6 +222,7 @@ class ThreadList extends React.Component<
   };
 
   _onShowContextMenu = (event: MouseEvent) => {
+    event.preventDefault();
     const items = this.refs.list.itemsForMouseEvent(event);
     if (!items || items.length === 0) {
       event.preventDefault();
@@ -230,7 +231,7 @@ class ThreadList extends React.Component<
     new ThreadListContextMenu({
       threadIds: items.map((t) => t.id),
       accountIds: [...new Set(items.map((t) => t.accountId))],
-    }).displayMenu();
+    }).displayMenu({ x: event.clientX, y: event.clientY });
   };
 
   _onDragItems = (event: React.DragEvent, items: Thread[]) => {

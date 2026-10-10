@@ -19,11 +19,18 @@ async function importOutlookPst({
   const temporary = path.join(root, 'imports');
   const snapshot = path.join(temporary, `outlook-${crypto.randomUUID()}.pst`);
   let child;
+  let exporterFinished;
+  let cancelTimer;
+  const cancelPath = `${snapshot}.cancel`;
   let idleTimer;
   let timeoutError;
   let count = 0;
   let warnings = 0;
-  const abort = () => child?.kill();
+  const abort = () => {
+    if (!child) return;
+    try { fs.writeFileSync(cancelPath, 'cancel'); } catch {}
+    cancelTimer = setTimeout(() => child.kill(), 3000);
+  };
   const checkCanceled = () => {
     if (signal.aborted) {
       const error = new Error('Import canceled. Any messages already imported are kept.');
@@ -90,6 +97,8 @@ async function importOutlookPst({
         snapshot,
         '-OutputDirectory',
         temporary,
+        '-CancelPath',
+        cancelPath,
       ],
       { windowsHide: true }
     );
@@ -103,6 +112,7 @@ async function importOutlookPst({
       child.once('error', reject);
       child.once('close', resolve);
     });
+    exporterFinished = finished;
     finished.catch(() => {});
     const resetIdle = () => {
       clearTimeout(idleTimer);
@@ -168,7 +178,12 @@ async function importOutlookPst({
   } finally {
     clearTimeout(idleTimer);
     signal.removeEventListener('abort', abort);
+    if (signal.aborted && child && child.exitCode === null && exporterFinished) {
+      await exporterFinished.catch(() => {});
+    }
+    clearTimeout(cancelTimer);
     if (child && child.exitCode === null) child.kill();
+    await fs.promises.unlink(cancelPath).catch(() => {});
     // Preserve failed EML exports; the disposable PST is never the user's source.
     await fs.promises.unlink(snapshot).catch(() => {});
   }

@@ -1,7 +1,8 @@
+import Icon from '../../../src/mailbridge/icon';
 import React from 'react';
 import path from 'path';
 import fs from 'fs';
-import { RetinaImg, Flexbox, ConfigPropContainer } from 'mailspring-component-kit';
+import { Flexbox, ConfigPropContainer } from 'mailspring-component-kit';
 import { localized, AccountStore, Account } from 'mailspring-exports';
 
 // NOTE: Temporarily copied from preferences module
@@ -22,13 +23,15 @@ class AppearanceModeOption extends React.Component<{
     }[this.props.mode];
 
     return (
-      <div className={classname} onClick={this.props.onClick}>
-        <RetinaImg
-          name={`appearance-mode-${this.props.mode}.png`}
-          mode={RetinaImg.Mode.ContentIsMask}
-        />
+      <button
+        type="button"
+        className={classname}
+        aria-pressed={this.props.active}
+        onClick={this.props.onClick}
+      >
+        <Icon name="pane" />
         <div>{label}</div>
-      </div>
+      </button>
     );
   }
 }
@@ -91,20 +94,9 @@ class InitialPreferencesOptions extends React.Component<
     }
 
     return (
-      <div
-        style={{
-          display: 'flex',
-          width: 600,
-          marginBottom: 50,
-          marginLeft: 150,
-          marginRight: 150,
-          textAlign: 'left',
-        }}
-      >
+      <div className="mb-setup-options">
         <div style={{ flex: 1 }}>
-          <p>
-            {localized('Do you prefer a single panel layout (like Gmail) or a two panel layout?')}
-          </p>
+          <p>{localized('Choose your reading layout.')}</p>
           <Flexbox direction="row" style={{ alignItems: 'center' }}>
             {['list', 'split'].map((mode) => (
               <AppearanceModeOption
@@ -123,7 +115,7 @@ class InitialPreferencesOptions extends React.Component<
         <div style={{ flex: 1 }}>
           <p>
             {localized(
-              `We've picked a set of keyboard shortcuts based on your email account and platform. You can also pick another set:`
+              `Choose familiar keyboard shortcuts. You can change these later in Settings.`
             )}
           </p>
           <select
@@ -175,13 +167,13 @@ class InitialPreferencesPage extends React.Component<
       return <div />;
     }
     return (
-      <div className="page opaque" style={{ width: 900, height: 620 }}>
-        <h1 style={{ paddingTop: 100 }}>{localized(`Welcome to MailBridge`)}</h1>
-        <h4 style={{ marginBottom: 60 }}>{localized(`Let's set things up to your liking.`)}</h4>
+      <div className="page opaque initial-preferences">
+        <h1>{localized(`Welcome to MailBridge`)}</h1>
+        <p className="prompt">{localized(`Let's set things up to your liking.`)}</p>
         <ConfigPropContainer>
           <InitialPreferencesOptions account={this.state.account} />
         </ConfigPropContainer>
-        <button className="btn btn-large" style={{ marginBottom: 60 }} onClick={this._onFinished}>
+        <button className="btn btn-large btn-emphasis" onClick={this._onFinished}>
           {localized(`Looks Good!`)}
         </button>
       </div>

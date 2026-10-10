@@ -18,37 +18,17 @@ import ThreadSearchBar from '../../thread-search/lib/thread-search-bar';
 import SearchStore from '../../thread-search/lib/search-store';
 import MovePickerPopover from '../../category-picker/lib/move-picker-popover';
 
-const preferences = () => {
+const openSettings = (tabId?: string) => {
+  if (!AppEnv.isMainWindow()) {
+    require('electron').ipcRenderer.send('command', 'application:open-preferences', tabId);
+    return;
+  }
   Actions.openPreferences();
-  Actions.switchPreferencesTab('Archive');
+  if (tabId) Actions.switchPreferencesTab(tabId);
 };
-const paths = {
-  mail: 'M3 5h18v14H3z M3 5l9 7 9-7',
-  delete: 'M5 7h14 M9 7V4h6v3 M7 7l1 14h8l1-14 M10 10v8 M14 10v8',
-  archive: 'M3 4h18v5H3z M5 9v12h14V9 M9 13h6',
-  reply: 'M10 4L3 10l7 6v-4c6 0 8 2 11 7-1-9-5-11-11-11z',
-  replyAll: 'M7 5L2 10l5 5 M13 4l-7 6 7 6v-4c5 0 6 2 9 6-1-8-4-10-9-10z',
-  forward: 'M14 4l7 6-7 6v-4c-6 0-8 2-11 7 1-9 5-11 11-11z',
-  sync: 'M20 8a8 8 0 0 0-13-3L3 8 M3 3v5h5 M4 16a8 8 0 0 0 13 3l4-3 M21 21v-5h-5',
-  flag: 'M5 22V3 M5 3h14l-3 5 3 5H5',
-  settings: 'M4 5h16 M4 12h16 M4 19h16 M8 2v6 M16 9v6 M10 16v6',
-  folder: 'M2 6h8l2 3h10v12H2z',
-};
-function Icon({ name }: { name: keyof typeof paths }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.25"
-      strokeLinejoin="round"
-      strokeLinecap="round"
-    >
-      <path d={paths[name]} />
-    </svg>
-  );
-}
+const preferences = () => openSettings('Archive');
+import Icon, { IconName } from '../../../src/mailbridge/icon';
+import { showMailBridgeMenu } from '../../../src/mailbridge/context-menu';
 function Command({
   icon,
   label,
@@ -56,7 +36,7 @@ function Command({
   disabled = false,
   title,
 }: {
-  icon: keyof typeof paths;
+  icon: IconName;
   label: string;
   onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
   disabled?: boolean;
@@ -107,7 +87,9 @@ class ArchiveStatus extends React.Component<Record<string, never>, { status: any
               ? 'Synchronizing archive…'
               : status.phase === 'setup'
                 ? 'Set up optional archive sync'
-                : 'Mail sync needs attention';
+                : status.phase === 'paused'
+                  ? 'Archive sync paused'
+                  : 'Mail sync needs attention';
     return (
       <div className="mb-office-statusbar">
         <span>MailBridge</span>
@@ -133,11 +115,19 @@ class ArchiveStatus extends React.Component<Record<string, never>, { status: any
 }
 class OfficeHeader extends React.Component<
   Record<string, never>,
-  { tab: string; thread: Thread | null; email: string; selected: number; mailbox: string }
+  {
+    tab: string;
+    thread: Thread | null;
+    email: string;
+    selected: number;
+    mailbox: string;
+    compact: boolean;
+  }
 > {
   static displayName = 'MailBridgeOfficeHeader';
   state = {
     tab: 'Home',
+    compact: window.innerWidth < 1280,
     thread: FocusedContentStore.focused('thread') as Thread,
     email: '',
     selected: ThreadListStore.dataSource()?.selection.count() || 0,
@@ -178,7 +168,9 @@ class OfficeHeader extends React.Component<
       email: accounts.length === 1 ? accounts[0].emailAddress : 'All accounts',
     });
   };
+  updateSize = () => this.setState({ compact: window.innerWidth < 1280 });
   componentDidMount() {
+    window.addEventListener('resize', this.updateSize);
     this.updateMailbox();
     this.observeSidebar();
     const draftSelection = DraftListStore.selectionObservable().subscribe(() => this.forceUpdate());
@@ -196,6 +188,7 @@ class OfficeHeader extends React.Component<
     ];
   }
   componentWillUnmount() {
+    window.removeEventListener('resize', this.updateSize);
     this.unsubscribers.forEach((fn) => fn());
     cancelAnimationFrame(this.sidebarFrame);
     this.sidebarObserver?.disconnect();
@@ -270,8 +263,11 @@ class OfficeHeader extends React.Component<
           </div>
         </div>
         <nav className="mb-office-tabs" aria-label="Ribbon tabs">
-          <button onClick={() => Actions.openPreferences()}>File</button>
-          {['Home', 'Send / Receive', 'View'].map((name) => (
+          <button onClick={() => openSettings()}>File</button>
+          {(AppEnv.isMainWindow()
+            ? ['Home', 'Send / Receive', 'View']
+            : ['Home', 'Send / Receive']
+          ).map((name) => (
             <button
               key={name}
               className={tab === name ? 'active' : ''}
@@ -282,7 +278,7 @@ class OfficeHeader extends React.Component<
             </button>
           ))}
           <button className="mb-office-settings-tab" onClick={preferences}>
-            Mail retention
+            <Icon name="archive" /> Mail retention
           </button>
         </nav>
         <div className="mb-office-ribbon" role="toolbar" aria-label={`${tab} commands`}>
@@ -356,38 +352,85 @@ class OfficeHeader extends React.Component<
                   disabled={count !== 1}
                 />
               </Group>
-              <Group label="Move">
-                <Command
-                  icon="folder"
-                  label="Move to Folder"
-                  disabled={!count || !account}
-                  onClick={(event) =>
-                    Actions.openPopover(<MovePickerPopover threads={threads} account={account} />, {
-                      originRect: event.currentTarget.getBoundingClientRect(),
-                      direction: 'down',
-                    })
-                  }
-                />
-              </Group>
-              <Group label="Tags">
-                <Command
-                  icon="mail"
-                  label={allRead ? 'Mark unread' : 'Mark read'}
-                  onClick={() => this.queue('read')}
-                  disabled={!count}
-                />
-                <Command
-                  icon="flag"
-                  label={allFlagged ? 'Unflag' : 'Flag'}
-                  onClick={() => this.queue('flag')}
-                  disabled={!count}
-                />
-              </Group>
+              {!this.state.compact && (
+                <Group label="Move">
+                  <Command
+                    icon="folder"
+                    label="Move to Folder"
+                    disabled={!count || !account}
+                    onClick={(event) =>
+                      Actions.openPopover(
+                        <MovePickerPopover threads={threads} account={account} />,
+                        {
+                          originRect: event.currentTarget.getBoundingClientRect(),
+                          direction: 'down',
+                        }
+                      )
+                    }
+                  />
+                </Group>
+              )}
+              {!this.state.compact && (
+                <Group label="Tags">
+                  <Command
+                    icon="mail"
+                    label={allRead ? 'Mark unread' : 'Mark read'}
+                    onClick={() => this.queue('read')}
+                    disabled={!count}
+                  />
+                  <Command
+                    icon="flag"
+                    label={allFlagged ? 'Unflag' : 'Flag'}
+                    onClick={() => this.queue('flag')}
+                    disabled={!count}
+                  />
+                </Group>
+              )}
               <Group label="Send / Receive">
                 <Command icon="sync" label="Sync Mail" onClick={() => MailBridge.requestSync()} />
               </Group>
-              <Group label="Settings">
-                <Command icon="settings" label="Mail Retention" onClick={preferences} />
+              <Group label="More">
+                <Command
+                  icon="more"
+                  label="More"
+                  onClick={(event) => {
+                    const originRect = event.currentTarget.getBoundingClientRect();
+                    showMailBridgeMenu(
+                      [
+                        {
+                          label: 'Move to folder',
+                          icon: 'folder',
+                          enabled: !!count && !!account,
+                          click: () =>
+                            Actions.openPopover(
+                              <MovePickerPopover threads={threads} account={account} />,
+                              { originRect, direction: 'down' }
+                            ),
+                        },
+                        {
+                          label: allRead ? 'Mark unread' : 'Mark read',
+                          icon: 'mail',
+                          enabled: !!count,
+                          click: () => this.queue('read'),
+                        },
+                        {
+                          label: allFlagged ? 'Unflag' : 'Flag',
+                          icon: 'flag',
+                          enabled: !!count,
+                          click: () => this.queue('flag'),
+                        },
+                        { type: 'separator' },
+                        { label: 'Archive & sync', icon: 'archive', click: preferences },
+                        {
+                          label: 'Settings',
+                          icon: 'settings',
+                          click: () => openSettings(),
+                        },
+                      ],
+                      { x: originRect.left, y: originRect.bottom }
+                    );
+                  }}
+                />
               </Group>
             </>
           )}
@@ -441,11 +484,7 @@ class OfficeHeader extends React.Component<
                 </button>
               </Group>
               <Group label="Appearance">
-                <Command
-                  icon="settings"
-                  label="Preferences"
-                  onClick={() => Actions.openPreferences()}
-                />
+                <Command icon="settings" label="Preferences" onClick={() => openSettings()} />
               </Group>
             </>
           )}
@@ -504,6 +543,8 @@ function registerMailHeaders() {
   const locations = [
     WorkspaceStore.Sheet.Threads?.Header,
     WorkspaceStore.Sheet.Drafts?.Header,
+    WorkspaceStore.Sheet.Thread?.Header,
+    ...(!AppEnv.isMainWindow() ? [WorkspaceStore.Sheet.Global?.Header] : []),
   ].filter(Boolean);
   if (
     locations.length === registeredHeaders.length &&
@@ -531,6 +572,7 @@ export function activate() {
   }
   registerMailHeaders();
   stopWatchingHeaders = WorkspaceStore.listen(registerMailHeaders);
+  if (!AppEnv.isMainWindow()) return;
   ComponentRegistry.register(MailListHeading, {
     location: WorkspaceStore.Location.ThreadList,
     modes: ['split', 'list', 'splitVertical'],

@@ -63,7 +63,7 @@ npm run typecheck
 node --test test/mailbridge/*.test.cjs
 ```
 
-The **MailBridge Windows** workflow builds the modified native engine with MSBuild/vcpkg, runs the real native integration tests on Windows, packages the desktop client, opens the packaged app for a smoke test, and generates `MailBridge-Setup-0.1.2.exe` with Inno Setup. Review builds are unsigned. Production signing is opt-in: set repository variable `MAILBRIDGE_SIGNED_BUILDS=true` and secrets `MAILBRIDGE_PFX_BASE64` and `MAILBRIDGE_PFX_PASSWORD` for your Authenticode certificate. Signing covers executable/DLL/native-module files and the installer. Build information and SHA-256 hashes accompany the artifact. No executable packing/obfuscation or antivirus evasion is used. A signature helps establish publisher identity; it cannot guarantee every antivirus or Windows reputation result.
+The **MailBridge Windows** workflow builds the modified native engine with MSBuild/vcpkg, runs the real native integration tests on Windows, packages the desktop client, opens the packaged app for a smoke test, and generates `MailBridge-Setup-0.1.4.exe` with Inno Setup. Review builds are unsigned. Production signing is opt-in: set repository variable `MAILBRIDGE_SIGNED_BUILDS=true` and secrets `MAILBRIDGE_PFX_BASE64` and `MAILBRIDGE_PFX_PASSWORD` for your Authenticode certificate. Signing covers executable/DLL/native-module files and the installer. Build information and SHA-256 hashes accompany the artifact. No executable packing/obfuscation or antivirus evasion is used. A signature helps establish publisher identity; it cannot guarantee every antivirus or Windows reputation result.
 
 For Linux development, build libetpan with a local prefix, then MailCore and mailsync with that prefix in their include/library search paths. Copy the resulting `mailsync` to `app/mailsync`. See `mailsync/BUILDING.md`. `npm start` runs the source app; `npm run build -- --skip-installers` produces a standalone Linux directory for verification.
 
@@ -131,3 +131,34 @@ MailBridge. It does not use the original client's update service. If the private
 is unavailable, the installed app is unchanged; download a verified new installer and
 run it over the current installation instead. This first update from older builds needs
 the downloaded installer because those builds do not contain the new update controls.
+
+### Fluent interface and quality checks (0.1.4)
+
+The compact ribbon groups common mail commands and moves secondary commands into an
+icon menu on narrower windows. Shared icon menus support arrows, Home/End, typeahead
+and Escape, restore focus, and close when the app locks. Reading popouts, saved drafts,
+new composers, account setup and settings use the MailBridge interface. Settings have
+persistent category navigation, accessible keyboard selection and a single content
+scroll area. Old subscription, welcome/authentication routes and billing notifications
+are bypassed, including for preserved upstream identities.
+
+Import reports copy percentage, Outlook startup, folder export and import counts.
+Cancellation signals the Outlook worker to detach its disposable PST before fallback
+termination. Backups show message counts and provide cancellation without replacing
+previous successful snapshots. Optional Drive archive sync can be paused; a current
+transfer finishes before pausing. Company IMAP downloads continue. **Sync Mail** resumes
+archive sync, including when invoked from a reading popout.
+
+Verification opens the real packaged Windows app and exercises mailbox spacing at
+1280 and 980 pixels, context menus, setup completion, all settings categories, draft
+and reading popouts, lock/unlock across windows, and visible import/backup feedback.
+The progress UI uses controlled workers: the 16 GiB copy indicator is a fixture, not
+proof of importing the user's PST. Native tests use controlled IMAP/SMTP servers;
+archive transport and cancellation tests use local/fake transports. CI upgrades the
+previous installed version with a populated fixture profile, verifies all existing
+profile bytes, unlocks it with its original password, and displays retained mail.
+
+A real company account, real Google Drive credentials, classic Outlook COM operations,
+the user's 16 GiB PST, Windows antivirus reputation and a second physical PC were not
+available for this verification. These still need a pilot on the intended PCs. The
+installer is unsigned unless a distributor configures Authenticode signing.

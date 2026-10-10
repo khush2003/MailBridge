@@ -183,13 +183,31 @@ export default class ArchivePreferences extends React.Component<Record<string, n
     const importAccount = this.state.importAccount || (accounts.length === 1 ? accounts[0].id : '');
     return (
       <div className="mailbridge-preferences">
-        <div className="mb-eyebrow">YOUR MAIL, ON BOTH PCS</div>
-        <h1>Archive & sync</h1>
+        <nav className="mb-settings-jumps" aria-label="Archive sections">
+          {[
+            ['mb-retention', 'Mail retention'],
+            ['mb-backups', 'PST backups'],
+            ['mb-import', 'Import Outlook'],
+            ['mb-password', 'App password'],
+            ['mb-updates', 'Updates'],
+          ]
+            .filter(
+              ([id]) => process.platform === 'win32' || !['mb-backups', 'mb-import'].includes(id)
+            )
+            .map(([id, label]) => (
+              <button
+                key={id}
+                onClick={() => document.getElementById(id)?.scrollIntoView({ block: 'start' })}
+              >
+                {label}
+              </button>
+            ))}
+        </nav>
         <p>
           IMAP receives your mail and SMTP sends it. Complete downloaded messages stay on this PC
           when you clear the company mailbox. Google Drive is optional.
         </p>
-        <section>
+        <section id="mb-retention">
           <h2>Sync between your PCs</h2>
           <label className="mb-check">
             <input
@@ -225,7 +243,9 @@ export default class ArchivePreferences extends React.Component<Record<string, n
                       ? 'Synchronizing archive'
                       : status.phase === 'setup'
                         ? 'Finish setup to connect your PCs'
-                        : 'Sync needs attention'}
+                        : status.phase === 'paused'
+                          ? 'Archive sync paused'
+                          : 'Sync needs attention'}
             </strong>
             <p>
               {status.error ||
@@ -435,7 +455,7 @@ export default class ArchivePreferences extends React.Component<Record<string, n
             ))}
           </section>
         )}
-        <section>
+        <section id="mb-updates">
           <h2>App updates</h2>
           <p>
             Updates replace the app in place and preserve your accounts, mail, app password, and
@@ -466,7 +486,7 @@ export default class ArchivePreferences extends React.Component<Record<string, n
             </div>
           )}
         </section>
-        <section>
+        <section id="mb-password">
           <h2>App password</h2>
           <p>
             Optionally lock access to MailBridge when it starts. Mail keeps downloading in the
@@ -569,6 +589,26 @@ export default class ArchivePreferences extends React.Component<Record<string, n
               </p>
             </>
           )}
+          {MailBridge.peerSyncEnabled() && (
+            <label className="mb-check">
+              <input
+                type="checkbox"
+                checked={config.archivePaused || false}
+                onChange={(event) =>
+                  this.perform(() =>
+                    MailBridge.saveSettings({ archivePaused: event.target.checked })
+                  )
+                }
+              />
+              Pause Drive archive sync
+            </label>
+          )}
+          {config.archivePaused && (
+            <p className="mb-muted">
+              A current transfer is allowed to finish safely. Company IMAP mail keeps downloading.
+              Uncheck this option or choose Sync now to resume archive transfers.
+            </p>
+          )}
           <div className="mb-inline">
             <button
               className="btn btn-emphasis"
@@ -581,7 +621,7 @@ export default class ArchivePreferences extends React.Component<Record<string, n
           </div>
         </section>
         {MailBridge.outlookImportAvailable() && (
-          <section>
+          <section id="mb-backups">
             <h2>PST backups</h2>
             <p>
               Export complete retained mail, including Sent mail and attachments, into a new PST
@@ -648,6 +688,13 @@ export default class ArchivePreferences extends React.Component<Record<string, n
                 className="mb-feedback"
                 role={status.backupProgress.error ? 'alert' : 'status'}
               >
+                {status.backupRunning && (
+                  <progress
+                    aria-label="PST backup progress"
+                    max={status.backupProgress.total || 1}
+                    value={status.backupProgress.total ? status.backupProgress.count : undefined}
+                  />
+                )}
                 {status.backupProgress.message}
                 {status.backupRunning && status.backupProgress.total
                   ? ` · ${status.backupProgress.count} of ${status.backupProgress.total} messages`
@@ -663,7 +710,7 @@ export default class ArchivePreferences extends React.Component<Record<string, n
           </section>
         )}
         {MailBridge.outlookImportAvailable() && (
-          <section>
+          <section id="mb-import">
             <h2>Import existing Outlook mail</h2>
             <p>
               Choose a PST backup from Outlook 2010 or classic Outlook. MailBridge copies it first,
@@ -717,6 +764,17 @@ export default class ArchivePreferences extends React.Component<Record<string, n
                 className="mb-feedback"
                 role={importError ? 'alert' : 'status'}
               >
+                {importing && (
+                  <progress
+                    aria-label="Outlook import progress"
+                    max={100}
+                    value={
+                      importMessage?.match(/Copying PST: (\d+)%/)
+                        ? Number(importMessage.match(/Copying PST: (\d+)%/)[1])
+                        : undefined
+                    }
+                  />
+                )}
                 {importMessage}
               </div>
             )}

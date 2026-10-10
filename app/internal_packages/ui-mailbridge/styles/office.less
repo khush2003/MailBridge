@@ -838,3 +838,81 @@ body.theme-ui-mailbridge .modal-container .modal-close {
     background: #e5effa;
   }
 }
+
+// Settings are one scrollable content surface beside persistent category navigation.
+body.theme-ui-mailbridge:has(.preferences-wrap) {
+  .sheet-toolbar-container, .sheet-toolbar[aria-label='Application toolbar'] { display: none; }
+  .nav-rail { display: none; }
+}
+body.theme-ui-mailbridge .preferences-wrap {
+  .mb-settings-appbar {
+    height: 40px; flex-shrink: 0; display: flex; align-items: center; gap: 20px;
+    padding: 0 20px; background: #0f5ca8; color: #fff; -webkit-app-region: drag;
+    span { margin-left: auto; font-weight: 600; }
+    button { display: flex; align-items: center; gap: 8px; border: 0; background: transparent; color: inherit; padding: 6px 8px; border-radius: 4px; cursor: pointer; -webkit-app-region: no-drag; }
+    button:hover { background: #ffffff24; }
+    svg { transform: rotate(180deg); width: 16px; height: 16px; }
+  }
+  .mb-settings-layout { min-height: 0; flex: 1; }
+  .container-preference-tabs { width: 208px; flex-shrink: 0; border: 0; border-right: 1px solid #e0e5ed; background: #f8f9fb; }
+  .mb-settings-nav-title { font-size: 20px; font-weight: 600; padding: 28px 24px 18px; color: #242424; }
+  .container-preference-tabs .preferences-tabs {
+    flex-direction: column; padding: 0 12px 20px; gap: 4px; overflow: auto;
+    .item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; min-height: 40px; flex: 0 0 auto; max-width: none; text-align: left; border-radius: 6px; position: relative; }
+    .item.active:before { content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 2px; background: #0f6cbd; }
+    .item .tab-icon { margin: 0; width: 20px !important; height: 20px !important; filter: none; flex-shrink: 0; opacity: 1; }
+    .item .name { padding: 0; font-size: 13px; line-height: 20px; white-space: nowrap; }
+  }
+  .mb-settings-main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: #fff; }
+  .mb-settings-heading { flex-shrink: 0; padding: 26px 36px 20px; border-bottom: 1px solid #edf0f4;
+    h1 { font-size: 24px; line-height: 32px; font-weight: 600; margin: 0 0 4px; color: #242424; }
+    p { margin: 0; color: #616161; font-size: 13px; }
+  }
+  .preferences-content { flex: 1; min-height: 0; background: #fff; }
+  .preferences-content .scroll-region-content-inner { padding: 0; }
+  .mailbridge-preferences { height: auto; overflow: visible; padding: 24px 36px 48px; max-width: 920px; margin: 0; }
+  .mb-settings-jumps { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px;
+    button { border: 1px solid #e0e5ed; padding: 6px 10px; font-size: 12px; background: #fafbfc; color: #424242; }
+    button:hover { background: #eaf3fc; border-color: #b4d6f3; }
+  }
+  .mailbridge-preferences section { scroll-margin-top: 16px; }
+  .mailbridge-preferences .mb-inline { flex-wrap: wrap; }
+  .mailbridge-preferences .mb-muted { overflow-wrap: anywhere; }
+  .mailbridge-preferences p, .mailbridge-preferences .mb-metrics span { color: #616161; }
+  .mailbridge-preferences .mb-feedback { border: 1px solid #cfe4fa; }
+  .mailbridge-preferences .mb-feedback[role='alert'] { background: #fff4f2; border-color: #f0cac5; color: #9a3027; }
+  progress { width: 100%; height: 5px; display: block; margin: 0 0 12px; accent-color: #0f6cbd; border: 0; }
+}
+.mb-icon { width: 20px; height: 20px; flex-shrink: 0; }
+.mb-context-menu-host { position: fixed; inset: 0; z-index: 10000; pointer-events: none; }
+.mb-context-menu {
+  pointer-events: auto; position: fixed; width: 280px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px);
+  overflow-y: auto; background: #fff; color: #242424; border: 1px solid #e0e0e0; border-radius: 8px;
+  padding: 4px; box-shadow: 0 8px 24px #00000024, 0 2px 5px #00000012; animation: mb-reveal 100ms ease-out;
+  button { width: 100%; display: flex; align-items: center; gap: 12px; text-align: left; padding: 8px 10px; min-height: 34px; border: 0; background: transparent; color: inherit; font-size: 13px; border-radius: 4px; cursor: pointer; }
+  button span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  button:hover:not(:disabled), button:focus-visible { outline: none; background: #f0f0f0; }
+  button:disabled { opacity: .4; cursor: default; }
+  .mb-icon { width: 18px; height: 18px; color: #424242; }
+  .mb-menu-divider { height: 1px; margin: 4px 8px; background: #ebebeb; }
+}
+@media (max-width: 850px) {
+  body.theme-ui-mailbridge .preferences-wrap {
+    .container-preference-tabs { width: 172px; }
+    .mb-settings-heading { padding: 20px 24px 16px; }
+    .mailbridge-preferences { padding: 20px 24px 40px; }
+  }
+}
+@media (prefers-reduced-motion: reduce) { .mb-context-menu { animation: none; } }
+
+body.theme-ui-mailbridge .preferences-wrap {
+  .preferences-content > .scroll-region-content { padding: 24px 36px 48px; }
+  .preferences-content:has(.mailbridge-preferences) > .scroll-region-content { padding: 0; }
+  .container-general, .container-appearance, .container-accounts, .container-keymaps { min-width: 0; max-width: 100%; width: 100%; }
+  .mb-settings-appbar > button:last-child:hover { background: #c42b1c; }
+  .mb-settings-appbar > button:last-child svg { transform: none; }
+}
+progress::-webkit-progress-bar { background: #e0e5ed; border-radius: 3px; }
+progress::-webkit-progress-value { background: #0f6cbd; border-radius: 3px; transition: width 150ms ease-out; }
+@media (prefers-reduced-motion: reduce) { progress::-webkit-progress-value { transition: none; } }
+.mb-context-menu .mb-menu-delete, .mb-context-menu .mb-menu-delete .mb-icon { color: #b10e1c; }

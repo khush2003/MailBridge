@@ -39,6 +39,9 @@ describe('Outlook PST import feedback', () => {
       'Import existing Outlook mail'
     );
     expect(button.disabled).toBe(true);
+    expect(
+      getByRole('progressbar', { name: 'Outlook import progress' }).getAttribute('value')
+    ).toBe('37');
     expect(getByRole('button', { name: 'Cancel import' })).not.toBe(null);
     await act(async () => {
       finish({ count: 12, warnings: 1 });

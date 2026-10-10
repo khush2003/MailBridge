@@ -88,6 +88,7 @@ class _IdentityStore extends MailspringStore {
   }
 
   _fetchAndPollRemoteIdentity() {
+    if (!AppEnv.inSpecMode()) return;
     if (!AppEnv.isMainWindow()) return;
     const poll = () => {
       // fetchIdentity can still reject for reasons other than the network request
@@ -136,6 +137,12 @@ class _IdentityStore extends MailspringStore {
    * cache and set the token from the keychain.
    */
   _onIdentityChanged = async () => {
+    // MailBridge connects mail accounts directly; preserved upstream identity data is inactive.
+    if (!AppEnv.inSpecMode()) {
+      this._identity = null;
+      this.trigger();
+      return;
+    }
     const value = AppEnv.config.get('identity');
     this._identity = value
       ? { ...value, token: await KeyManager.getPassword(PASSWORD_NAME) }

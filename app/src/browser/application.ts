@@ -488,10 +488,18 @@ export default class Application extends EventEmitter {
       shell.openExternal(helpUrl);
     });
 
-    this.on('application:open-preferences', () => {
+    this.on('application:sync-mail', () => {
+      this.windowManager
+        .get(WindowManager.MAIN_WINDOW)
+        ?.sendMessage('command', 'window:sync-mail-now');
+    });
+
+    this.on('application:open-preferences', (tabId?: string) => {
       const main = this.windowManager.get(WindowManager.MAIN_WINDOW);
       if (main) {
-        main.sendMessage('open-preferences');
+        main.show();
+        main.focus();
+        main.sendMessage('open-preferences', tabId);
       }
     });
 

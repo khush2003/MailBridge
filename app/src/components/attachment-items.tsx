@@ -1,3 +1,4 @@
+import { showMailBridgeMenu, MailBridgeMenuItem } from '../mailbridge/context-menu';
 import fs from 'fs';
 import path from 'path';
 import classnames from 'classnames';
@@ -16,38 +17,46 @@ const defaultProps = {
 
 const SPACE = ' ';
 
-function buildContextMenu(fns: {
-  onOpenAttachment?: () => void;
-  onPreviewAttachment?: () => void;
-  onRemoveAttachment?: () => void;
-  onSaveAttachment?: () => void;
-}) {
-  const template: Electron.MenuItemConstructorOptions[] = [];
+function buildContextMenu(
+  fns: {
+    onOpenAttachment?: () => void;
+    onPreviewAttachment?: () => void;
+    onRemoveAttachment?: () => void;
+    onSaveAttachment?: () => void;
+  },
+  event?: React.MouseEvent
+) {
+  const template: MailBridgeMenuItem[] = [];
   if (fns.onOpenAttachment) {
     template.push({
       click: () => fns.onOpenAttachment(),
       label: localized('Open'),
+      icon: 'folder',
     });
   }
   if (fns.onRemoveAttachment) {
     template.push({
       click: () => fns.onRemoveAttachment(),
       label: localized('Remove'),
+      icon: 'delete',
     });
   }
   if (fns.onPreviewAttachment) {
     template.push({
       click: () => fns.onPreviewAttachment(),
       label: localized('Preview'),
+      icon: 'search',
     });
   }
   if (fns.onSaveAttachment) {
     template.push({
       click: () => fns.onSaveAttachment(),
       label: localized('Save Into...'),
+      icon: 'download',
     });
   }
-  require('@electron/remote').Menu.buildFromTemplate(template).popup({});
+  event?.preventDefault();
+  showMailBridgeMenu(template, event ? { x: event.clientX, y: event.clientY } : undefined);
 }
 
 const ProgressBar: React.FunctionComponent<{
@@ -210,12 +219,15 @@ export class AttachmentItem extends Component<AttachmentItemProps> {
         draggable={draggable}
         onDoubleClick={onOpenAttachment}
         onDragStart={this._onDragStart}
-        onContextMenu={() =>
-          buildContextMenu({
-            onPreviewAttachment: this._onClickQuicklookIcon,
-            onOpenAttachment,
-            onSaveAttachment,
-          })
+        onContextMenu={(event) =>
+          buildContextMenu(
+            {
+              onPreviewAttachment: this._onClickQuicklookIcon,
+              onOpenAttachment,
+              onSaveAttachment,
+            },
+            event
+          )
         }
         {...pickHTMLProps(extraProps)}
       >
@@ -344,7 +356,9 @@ export class ImageAttachmentItem extends Component<ImageAttachmentItemProps> {
           <div
             className="file-preview"
             onDoubleClick={onOpenAttachment}
-            onContextMenu={() => buildContextMenu({ onOpenAttachment, onSaveAttachment })}
+            onContextMenu={(event) =>
+              buildContextMenu({ onOpenAttachment, onSaveAttachment }, event)
+            }
           >
             <div className="file-name-container">
               <div className="file-name" title={displayName}>

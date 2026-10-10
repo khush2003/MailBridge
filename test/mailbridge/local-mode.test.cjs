@@ -17,9 +17,10 @@ function fixture(t, accounts = [{ id: 'a', emailAddress: 'mail@example.test', sy
   } }).outputText;
   vm.runInNewContext(script, { exports, process, Buffer, setInterval, clearInterval, console,
     AppEnv: { getLoadSettings: () => ({ configDirPath: root }) },
-    require: name => name === '../flux/stores/account-store' ? { AccountStore: { accounts: () => accounts } } :
+    require: name => name === 'electron' ? { ipcRenderer: { send: (...args) => { exports.ipcCalls ||= []; exports.ipcCalls.push(args); } } } : name === '../flux/stores/account-store' ? { AccountStore: { accounts: () => accounts } } :
       name === '../key-manager' ? { secureStorage: {} } : name === '@electron/remote' ? {} : realRequire(name),
   }, { filename: source });
+  exports.default._testIpcCalls = () => exports.ipcCalls || [];
   return exports.default;
 }
 test('a new profile retains mail without requiring Drive or pairing', async t => {
@@ -94,4 +95,10 @@ test('an alive main window cannot authorize cleanup using an outdated native cap
   controller.retentionStats.captureCheckedAt = Date.now() - 61000;
   controller.publish({ phase: 'connected' });
   assert.equal(controller.status().localCaptureReady, false);
+});
+
+test('a reading popout routes Sync Mail to the main window instead of writing an unused request', async t => {
+  const controller = fixture(t);
+  await controller.requestSync();
+  assert.deepEqual(JSON.parse(JSON.stringify(controller._testIpcCalls())), [['command','application:sync-mail']]);
 });

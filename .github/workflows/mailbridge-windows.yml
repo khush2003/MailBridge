@@ -149,7 +149,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh run download 38052319696 -R khush2003/MailBridge -n MailBridge-review-installer-cf8b4818a1260d3c9696155a6a15abd8b97ba4e2 -D mailbridge-artifacts/previous-installer
+          gh run download 38067858150 -R khush2003/MailBridge -n MailBridge-review-installer-825a413a360aeb11ef0c953b7c996372adbeb484 -D mailbridge-artifacts/previous-installer
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           $previous = (Get-ChildItem mailbridge-artifacts/previous-installer/*.exe | Select-Object -First 1).FullName
           $process = Start-Process $previous -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -PassThru -Wait
@@ -160,8 +160,8 @@ jobs:
           New-Item -ItemType Directory -Force $profile | Out-Null
           Copy-Item (Join-Path $scenario.FullName 'b/config/*') $profile -Recurse -Force
           New-Item -ItemType Directory -Force (Join-Path $profile 'mailbridge/blobs') | Out-Null
-          '{"*":{"accounts":[{"emailAddress":"upgrade-fixture@example.test"}],"accountsVersion":19}}' | Set-Content (Join-Path $profile 'config.json')
-          '{"backupEnabled":true,"backupInterval":"weekly","backupFolder":"D:\\Backups"}' | Set-Content (Join-Path $profile 'mailbridge/settings.json')
+          node test/mailbridge/seed-upgrade-profile.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           'Retained MIME fixture, including Sent attachments' | Set-Content (Join-Path $profile 'mailbridge/blobs/upgrade-retained-fixture.eml')
           node -e "const path=require('path');const{PasswordLock}=require('./app/src/mailbridge/password-lock');new PasswordLock(path.join(process.env.APPDATA,'MailBridge')).configure('','upgrade-fixture-password').catch(e=>{console.error(e);process.exit(1)})"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
@@ -172,7 +172,9 @@ jobs:
           foreach ($file in $before) {
             if (!(Test-Path $file.Path) -or (Get-FileHash $file.Path -Algorithm SHA256).Hash -ne $file.Hash) { throw "Upgrade changed profile data: $($file.Path)" }
           }
-          'Upgrade from 0.1.1 preserved all existing account, archive, backup and password fixture bytes.' | Set-Content mailbridge-artifacts/upgrade-verification.txt
+          'Upgrade from 0.1.3 preserved all existing account, archive, backup and password fixture bytes.' | Set-Content mailbridge-artifacts/upgrade-verification.txt
+          node test/mailbridge/windows-upgrade.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Verify installer and uninstaller
         shell: pwsh
         run: |
@@ -191,6 +193,13 @@ jobs:
           if ($process.ExitCode -ne 0 -or (Test-Path $env:MAILBRIDGE_DESKTOP_BINARY)) { throw 'Uninstall did not remove the executable' }
           if (Get-ItemProperty -Path 'HKCU:\Software\RegisteredApplications' -Name MailBridge -ErrorAction SilentlyContinue) { throw 'Uninstall left the registered application entry' }
           Remove-Item Env:MAILBRIDGE_DESKTOP_BINARY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MailBridge-verification-${{ github.sha }}
+          path: |
+            mailbridge-artifacts/upgrade-verification.txt
+            mailbridge-artifacts/windows-upgraded-profile.png
+          if-no-files-found: error
       - name: Export build information
         shell: pwsh
         run: |

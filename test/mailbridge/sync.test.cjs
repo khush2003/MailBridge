@@ -247,3 +247,14 @@ test('unchanged large snapshots avoid transfers but edits invalidate the revisio
   assert.equal(a.records.values().next().value.unread, false);
   assert.equal(fetched.filter(id => id.includes('-state-')).length, 1);
 });
+
+test('pausing archive transfers preserves completed work and resumes without duplicating mail', async t => {
+  const {a,b,remote}=pair();t.after(()=>{fs.rmSync(a.root,{recursive:true,force:true});fs.rmSync(b.root,{recursive:true,force:true});});
+  const one=a.add(Buffer.from('First mail')),two=a.add(Buffer.from('Second mail'));
+  let paused=false; a.sync.isCanceled=()=>paused;
+  const put=remote.put.bind(remote); remote.put=async(name,bytes)=>{await put(name,bytes);if(name.includes('-mail-'))paused=true;};
+  assert.equal(await a.sync.run(),false); assert.equal(a.sync.status.phase,'paused');assert.equal(a.sync.status.running,false);
+  assert.ok(fs.existsSync(path.join(a.root,'blobs',one.digest+'.eml')));assert.ok(fs.existsSync(path.join(a.root,'blobs',two.digest+'.eml')));
+  paused=false;remote.put=put;await a.sync.run();await b.sync.run();
+  assert.equal(b.records.size,2);assert.equal([...remote.objects.keys()].filter(name=>name.includes('-mail-')).length,2);
+});

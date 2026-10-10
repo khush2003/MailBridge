@@ -49,7 +49,7 @@ export default {
             note:
               process.platform === 'linux'
                 ? localized(
-                    'On Linux you need to restart Mailspring for the tray icon to disappear.'
+                    'On Linux you need to restart MailBridge for the tray icon to disappear.'
                   )
                 : undefined,
           },

@@ -8,5 +8,9 @@
   "engines": {
     "mailspring": "*"
   },
-  "syncInit": true
+  "syncInit": true,
+  "windowTypes": {
+    "default": true,
+    "thread-popout": true
+  }
 }
