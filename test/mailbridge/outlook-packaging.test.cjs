@@ -17,7 +17,7 @@ test('Outlook scripts and nested PST helper files remain real files after ASAR p
   const archive = path.join(directory, 'app.asar');
   await asar.createPackageWithOptions(source, archive, options);
   for (const file of files) {
-    assert.equal(asar.statFile(archive, file).unpacked, true);
+    assert.equal(asar.statFile(archive, path.normalize(file)).unpacked, true);
     assert.equal(fs.readFileSync(path.join(`${archive}.unpacked`, file), 'utf8'), file);
   }
 });

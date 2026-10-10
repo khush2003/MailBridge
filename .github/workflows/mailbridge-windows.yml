@@ -99,9 +99,13 @@ jobs:
       - name: Install desktop dependencies
         run: npm ci
       - name: Verify sync and type checking
+        shell: pwsh
         run: |
-          node --test test/mailbridge/*.test.cjs
+          node --test test/mailbridge/*.test.cjs *> mailbridge-artifacts/node-tests.log
+          if ($LASTEXITCODE) { Get-Content mailbridge-artifacts/node-tests.log; exit $LASTEXITCODE }
+          Get-Content mailbridge-artifacts/node-tests.log -Tail 10
           npm run typecheck
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Verify inherited desktop behavior
         shell: pwsh
         run: |
@@ -200,6 +204,7 @@ jobs:
             mailbridge-artifacts/upgrade-verification.txt
             mailbridge-artifacts/windows-upgraded-profile.png
             mailbridge-artifacts/desktop-tests.log
+            mailbridge-artifacts/node-tests.log
             mailbridge-artifacts/desktop-junit/*.xml
           if-no-files-found: error
       - name: Export build information
@@ -221,6 +226,7 @@ jobs:
             mailbridge-artifacts/native/
             app/dist/mailbridge-smoke.log
             mailbridge-artifacts/desktop-tests.log
+            mailbridge-artifacts/node-tests.log
             mailbridge-artifacts/desktop-junit/*.xml
             mailbridge-artifacts/upgrade-failure.json
             mailbridge-artifacts/upgrade-verification.txt
