@@ -14,7 +14,7 @@ const path = require('node:path');
   const id = process.env.MAILBRIDGE_WORKSPACE_ACCOUNT_ID || 'c0ffee-peer';
   fs.writeFileSync(path.join(config, 'config.json'), JSON.stringify({ '*': {
     core: { reading: { markAsReadDelay: -1 }, workspace: { mode: 'split' }, disabledPackages: ['mcp-server', 'open-tracking', 'link-tracking', 'activity', 'thread-sharing'] },
-    accountsVersion: 19, accounts: [{ id, metadata: [], name: 'Offline workspace fixture', provider: 'imap', emailAddress: 'test@example.test', label: 'test@example.test',
+    env: 'production', containerFolderDefault: '', accountsVersion: 19, accounts: [{ id, metadata: [], name: 'Offline workspace fixture', provider: 'imap', emailAddress: 'test@example.test', label: 'test@example.test',
       settings: { imap_host: '127.0.0.1', imap_port: 65530, imap_username: 'test', imap_security: 'none', smtp_host: '127.0.0.1', smtp_port: 65530, smtp_username: 'test', smtp_security: 'none' },
       autoaddress: { type: 'bcc', value: '' }, aliases: [], authedAt: 0, syncState: 'sync_error', __cls: 'Account' }],
   } }));
