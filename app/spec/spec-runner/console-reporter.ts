@@ -71,25 +71,32 @@ export default class ConsoleReporter {
   }
 
   reportRunnerResults(_runner) {
-    process.stdout.write('\n\n');
-    process.stdout.write(`  ${this.passCount} passing\n`);
+    const lines: string[] = [];
+    const write = (line: string) => lines.push(line);
+    write('\n\n');
+    write(`  ${this.passCount} passing\n`);
 
     if (this.failures.length > 0) {
-      process.stdout.write(`  ${this.failures.length} failing\n`);
-      process.stdout.write('\n');
+      write(`  ${this.failures.length} failing\n`);
+      write('\n');
       this.failures.forEach((failure, i) => {
-        process.stdout.write(`  ${i + 1}) ${failure.name}\n`);
+        write(`  ${i + 1}) ${failure.name}\n`);
         failure.items.forEach((item: any) => {
-          process.stdout.write(`     ${item.message}\n`);
+          write(`     ${item.message}\n`);
           if (item.trace && item.trace.stack) {
             item.trace.stack
               .split('\n')
               .slice(1, 6)
-              .forEach((line) => process.stdout.write(`     ${line.trim()}\n`));
+              .forEach((line) => write(`     ${line.trim()}\n`));
           }
-          process.stdout.write('\n');
+          write('\n');
         });
       });
     }
+    const summary = lines.join('');
+    // Windows GUI renderers do not reliably inherit the terminal's stdout.
+    // Chromium logging forwards console output to the test process instead.
+    if (process.platform === 'win32') originalLog(summary);
+    else process.stdout.write(summary);
   }
 }

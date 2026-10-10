@@ -94,7 +94,9 @@ jobs:
       - name: Verify inherited desktop behavior
         shell: pwsh
         run: |
-          npm test *> mailbridge-artifacts/desktop-tests.log
+          $junit = Join-Path (Get-Location) 'mailbridge-artifacts/desktop-junit'
+          New-Item -ItemType Directory -Force $junit | Out-Null
+          npm test -- "--junit-xml=$junit" *> mailbridge-artifacts/desktop-tests.log
           if ($LASTEXITCODE) { Get-Content mailbridge-artifacts/desktop-tests.log -Tail 100; exit $LASTEXITCODE }
       - name: Build standalone desktop client
         run: npm run build -- --skip-installers
@@ -168,5 +170,6 @@ jobs:
             mailbridge-artifacts/native/
             app/dist/mailbridge-smoke.log
             mailbridge-artifacts/desktop-tests.log
+            mailbridge-artifacts/desktop-junit/*.xml
             mailbridge-artifacts/windows-*.png
           if-no-files-found: ignore
