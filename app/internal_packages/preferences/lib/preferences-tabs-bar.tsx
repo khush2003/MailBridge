@@ -47,7 +47,7 @@ class PreferencesTabItem extends React.Component<PreferencesTabItemProps> {
       Appearance: 'appearance',
       Shortcuts: 'keyboard',
       'Mail Rules': 'rules',
-      'MCP Server': 'code',
+      MCP: 'code',
       Folders: 'folder',
       Signatures: 'signature',
       Templates: 'template',

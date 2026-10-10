@@ -916,3 +916,27 @@ progress::-webkit-progress-bar { background: #e0e5ed; border-radius: 3px; }
 progress::-webkit-progress-value { background: #0f6cbd; border-radius: 3px; transition: width 150ms ease-out; }
 @media (prefers-reduced-motion: reduce) { progress::-webkit-progress-value { transition: none; } }
 .mb-context-menu .mb-menu-delete, .mb-context-menu .mb-menu-delete .mb-icon { color: #b10e1c; }
+
+body.theme-ui-mailbridge .preferences-wrap .preferences-content {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']), select, textarea {
+    border: 1px solid #d1dbe7;
+    border-radius: 5px;
+    background: #fff;
+    color: #242424;
+    padding: 8px 10px;
+    font-size: 13px;
+    line-height: 20px;
+    transition: border-color 120ms ease, box-shadow 120ms ease;
+    &:hover:not(:disabled) { border-color: #8599b0; }
+    &:focus-visible { border-color: #0f6cbd; outline: 2px solid #0f6cbd; outline-offset: 1px; }
+    &:disabled { background: #f5f5f5; color: #767676; cursor: default; }
+  }
+  input:not([type='checkbox']):not([type='radio']):not([type='range']), select { min-height: 36px; }
+  .editable-list, .templates-list, .account-details { border-radius: 6px; }
+  .btn-editable-list { border-radius: 4px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.theme-ui-mailbridge .preferences-wrap .preferences-content {
+    input, select, textarea { transition: none; }
+  }
+}
