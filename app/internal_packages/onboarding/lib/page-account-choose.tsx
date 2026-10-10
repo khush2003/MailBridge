@@ -9,16 +9,24 @@ export default class AccountChoosePage extends React.Component<{ account?: objec
 
   _renderProviders() {
     return AccountProviders.map(({ icon, displayName, provider }) => (
-      <div
+      <button
+        type="button"
         key={provider}
         className={`provider ${provider}`}
         onClick={() => OnboardingActions.chooseAccountProvider(provider)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            event.stopPropagation();
+            OnboardingActions.chooseAccountProvider(provider);
+          }
+        }}
       >
         <div className="icon-container">
           <RetinaImg name={icon} mode={RetinaImg.Mode.ContentPreserve} className="icon" />
         </div>
         <span className="provider-name">{displayName}</span>
-      </div>
+      </button>
     ));
   }
 

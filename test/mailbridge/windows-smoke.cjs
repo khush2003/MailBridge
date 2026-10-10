@@ -50,8 +50,13 @@ const path = require('node:path');
       }
       return false;
     }, { timeout: 60000, message: 'Account setup window must open' }).toBe(true);
-    await window.getByText('IMAP / SMTP', { exact: true }).click();
-    await window.getByText('IMAP', { exact: false }).first().waitFor();
+    await window.waitForTimeout(300);
+    await window.screenshot({ path: 'mailbridge-artifacts/windows-onboarding.png' });
+    await window.getByRole('button', { name: 'IMAP / SMTP', exact: true }).focus();
+    await window.keyboard.press('Enter');
+    await expect(window.getByText('Add your IMAP account', { exact: true })).toBeVisible();
+    await window.waitForTimeout(300);
+    await window.screenshot({ path: 'mailbridge-artifacts/windows-onboarding-imap.png' });
     fs.writeFileSync('app/dist/mailbridge-smoke.log', 'Packaged application launched and account setup opened successfully.\n');
   } catch (error) {
     const windows = [];

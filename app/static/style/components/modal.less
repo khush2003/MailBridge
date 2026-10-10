@@ -18,10 +18,30 @@
     z-index: 40;
     opacity: 0;
     transform: translateY(10px) rotateX(-7deg);
-    transition: transform 360ms ease-out, opacity 240ms ease-out;
+    transition:
+      transform 360ms ease-out,
+      opacity 240ms ease-out;
 
     .modal-close {
       margin: 6px;
+      border: 0;
+      background: transparent;
+      border-radius: 5px;
+      width: 28px;
+      height: 28px;
+      padding: 7px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+      img {
+        width: 14px;
+        height: 14px;
+      }
     }
   }
 

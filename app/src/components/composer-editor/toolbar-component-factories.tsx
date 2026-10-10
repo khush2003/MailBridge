@@ -1,4 +1,5 @@
 import React from 'react';
+import { localized } from 'mailspring-exports';
 import { Range, Editor, Mark, Value, Block, Selection } from 'slate';
 import CompactPicker from 'react-color/lib/Compact';
 import { ComposerEditorPluginToolbarComponentProps } from './types';
@@ -322,6 +323,9 @@ export function BuildColorPicker(config) {
         >
           <button
             onClick={this._onToggleExpanded}
+            aria-label={localized('Text color')}
+            title={localized('Text color')}
+            aria-expanded={expanded}
             style={{
               backgroundColor: color,
             }}

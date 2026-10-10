@@ -59,6 +59,16 @@ const path = require('node:path');
     };
     await resize(40);
     await resize(-40);
+    const folderSpacing = await page.locator('.account-sidebar .outline-view .item').evaluateAll(items => items.filter(item => item.querySelector('.icon')).map(item => ({
+      name: item.querySelector('.name').textContent,
+      inset: item.querySelector('.icon').getBoundingClientRect().left - item.getBoundingClientRect().left,
+      rightInset: item.getBoundingClientRect().right - (item.querySelector('.item-count-box') || item.querySelector('.name')).getBoundingClientRect().right,
+    })));
+    assert.ok(folderSpacing.length > 0, 'Rendered folder rows must exist');
+    for (const row of folderSpacing) {
+      assert.ok(row.inset >= 10, `${row.name}: icon must have room inside its selection background`);
+      assert.ok(row.rightInset >= 9, `${row.name}: label or unread badge must have right padding`);
+    }
     const tabs = page.locator('.mb-office-tabs');
     await tabs.getByRole('button', { name: 'View', exact: true }).click();
     await page.getByRole('button', { name: 'Message list only', exact: true }).click();
@@ -87,6 +97,7 @@ const path = require('node:path');
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await expect(page.locator('.mb-ribbon-command').first()).toHaveCSS('transition-duration', '0s');
     await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.waitForFunction(() => document.getAnimations().every(animation => animation.playState !== 'running'));
     await page.screenshot({ path: 'mailbridge-artifacts/windows-workspace.png' });
     await page.getByRole('button', { name: 'Mail Retention', exact: true }).click();
     let preferences;
@@ -101,13 +112,57 @@ const path = require('node:path');
     await expect(preferences.getByRole('button', { name: 'Connect directly', exact: true })).toBeVisible();
     await optionalDrive.uncheck();
     await expect(preferences.getByRole('button', { name: 'Connect directly', exact: true })).toHaveCount(0);
+    const clippedTabs = await preferences.getByRole('tab').locator('.name').evaluateAll(labels => labels.filter(label => label.scrollWidth > label.clientWidth + 1 || label.scrollHeight > label.clientHeight + 1).map(label => label.textContent));
+    assert.deepEqual(clippedTabs, [], 'Settings tab labels must remain fully visible');
     await preferences.screenshot({ path: 'mailbridge-artifacts/windows-retention-settings.png' });
+    const tabNames = await preferences.getByRole('tab').allTextContents();
+    for (const tabName of tabNames) {
+      await preferences.getByRole('tab', { name: tabName.trim(), exact: true }).click();
+      await preferences.waitForTimeout(200);
+      await preferences.screenshot({ path: `mailbridge-artifacts/windows-settings-${tabName.trim().replace(/[^a-zA-Z0-9]/g, '-')}.png` });
+    }
     await preferences.getByRole('tab', { name: 'General', exact: true }).click();
     await expect(preferences.locator('.container-general')).toBeVisible();
     await preferences.getByRole('tab', { name: 'Appearance', exact: true }).click();
     await expect(preferences.getByRole('tab', { name: 'Appearance', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await preferences.evaluate(() => require('mailspring-exports').Actions.popSheet());
+    await search.focus();
+    await page.evaluate(() => AppEnv.commands.dispatch('window:launch-theme-picker'));
+    await expect(page.getByRole('dialog')).toBeVisible();
+    const closeDialog = page.getByRole('button', { name: 'Close dialog', exact: true });
+    await closeDialog.focus();
+    await page.keyboard.press('Shift+Tab');
+    await expect(page.getByText('Create a Theme', { exact: true })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(closeDialog).toBeFocused();
+    await page.waitForTimeout(200);
+    const themeCards = page.locator('.clickable-theme-option');
+    const firstCard = await themeCards.nth(0).boundingBox();
+    const secondCard = await themeCards.nth(1).boundingBox();
+    assert.ok(Math.abs(firstCard.y - secondCard.y) < 2, 'Theme cards must fit side by side');
+    await page.screenshot({ path: 'mailbridge-artifacts/windows-theme-dialog.png' });
+    await closeDialog.press('Enter');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(search).toBeFocused();
+    // This offline fixture has no account secret or live engine. Render composition without
+    // forwarding draft tasks; actual sending is covered by the native SMTP integration tests.
+    await page.evaluate(() => { AppEnv.mailsyncBridge.sendMessageToAccount = () => {}; });
+    await page.getByRole('button', { name: 'New Email', exact: true }).click();
+    let composer;
+    await expect.poll(async () => {
+      for (const candidate of application.windows()) if (await candidate.locator('.composer-header').isVisible().catch(() => false)) { composer = candidate; return true; }
+      return false;
+    }, { timeout: 15000 }).toBe(true);
+    await composer.getByPlaceholder('Subject', { exact: true }).fill('MailBridge interface review');
+    await expect(composer.locator('.secondary-picker')).toHaveCount(0);
+    await expect(composer.getByRole('button', { name: 'Text color', exact: true })).toBeVisible();
+    await composer.getByText('Cc', { exact: true }).click();
+    await composer.getByText('Bcc', { exact: true }).click();
+    await expect(composer.locator('.tokenizing-field.bcc input').first()).toHaveCSS('outline-style', 'none');
+    await composer.waitForTimeout(250);
+    await composer.screenshot({ path: 'mailbridge-artifacts/windows-compose.png' });
     assert.equal(errors.length, 0, errors.join('\n'));
-    console.log('Packaged workspace, full bodies after mode switches, search, attachments, reduced motion, and optional Drive settings passed.');
+    console.log('Packaged workspace, full bodies, search, folder padding, readable settings tabs, all settings screens, composition, reduced motion, and optional Drive settings passed.');
   } finally { await application.close(); }
   assert.equal(errors.length, 0, errors.join('\n'));
 })().catch(error => { console.error(error); process.exit(1); });

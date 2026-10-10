@@ -95,11 +95,26 @@ class ThemeOption extends React.Component<ThemeOptionProps> {
 
   render() {
     return (
-      <div className="clickable-theme-option" onMouseDown={this.props.onSelect}>
+      <div
+        className="clickable-theme-option"
+        role="button"
+        tabIndex={0}
+        title={this.props.theme.displayName}
+        aria-label={this.props.theme.displayName}
+        onMouseDown={this.props.onSelect}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            event.stopPropagation();
+            this.props.onSelect();
+          }
+        }}
+      >
         <EventedIFrame
           ref={(cm) => {
             this._iframeComponent = cm;
           }}
+          tabIndex={-1}
           className={toSelector(this.props.theme.name)}
           frameBorder="0"
           width="115px"

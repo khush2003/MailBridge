@@ -59,6 +59,18 @@ describe('SendActionButton', function describeBlock() {
     expect(container.querySelector('.primary-item').getAttribute('title')).toBe('Send');
   });
 
+  it('omits an empty options menu when Send is the only available action', () => {
+    spyOn(SendActionsStore, 'orderedSendActionsForDraft').andReturn([
+      SendActionsStore.DefaultSendAction,
+    ]);
+    const container = renderButton(this.draft);
+    expect(container.querySelector('.secondary-picker')).toBe(null);
+    fireEvent.click(container.querySelector('.primary-item'));
+    expect(Actions.sendDraft).toHaveBeenCalledWith(this.draft.headerMessageId, {
+      actionKey: 'send',
+    });
+  });
+
   it('has the correct primary item', () => {
     spyOn(SendActionsStore, 'orderedSendActionsForDraft').andReturn([
       SecondSendAction,

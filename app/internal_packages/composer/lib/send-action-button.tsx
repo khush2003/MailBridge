@@ -124,12 +124,14 @@ export class SendActionButton extends React.Component<
         primaryClick={this._onPrimaryClick}
         closeOnMenuClick
         menu={
-          <Menu
-            items={this.state.sendActions.slice(1)}
-            itemKey={(actionConfig) => actionConfig.configKey}
-            itemContent={this._renderSendActionItem}
-            onSelect={this._onSendWithAction}
-          />
+          this.state.sendActions.length > 1 ? (
+            <Menu
+              items={this.state.sendActions.slice(1)}
+              itemKey={(actionConfig) => actionConfig.configKey}
+              itemContent={this._renderSendActionItem}
+              onSelect={this._onSendWithAction}
+            />
+          ) : null
         }
       />
     );

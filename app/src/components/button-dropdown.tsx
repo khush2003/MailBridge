@@ -13,7 +13,7 @@ type ButtonDropdownProps = {
   primaryTitle?: string;
   primaryItem: React.ReactElement;
   primaryClick?: () => void;
-  menu: React.ReactElement;
+  menu?: React.ReactElement;
   style?: CSSProperties;
   closeOnMenuClick?: boolean;
   attachment?: string;
@@ -68,26 +68,35 @@ export class ButtonDropdown extends React.Component<ButtonDropdownProps, ButtonD
           >
             {this.props.primaryItem}
           </div>
-          <div
-            role="button"
-            tabIndex={0}
-            aria-label={localized('More options')}
-            aria-haspopup="menu"
-            aria-expanded={this.state.open !== false}
-            className="secondary-picker"
-            onClick={this.toggleDropdown}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                this.toggleDropdown();
-              }
-            }}
-          >
-            <RetinaImg name={'icon-thread-disclosure.png'} mode={RetinaImg.Mode.ContentIsMask} />
-          </div>
-          <div role="menu" className="secondary-items" onMouseDown={this._onMenuClick}>
-            {menu}
-          </div>
+          {this.props.menu && (
+            <>
+              <div
+                role="button"
+                tabIndex={0}
+                aria-label={localized('More options')}
+                aria-haspopup="menu"
+                aria-expanded={this.state.open !== false}
+                className="secondary-picker"
+                onClick={this.toggleDropdown}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    this.toggleDropdown();
+                  } else if (e.key === 'Escape') {
+                    this.setState({ open: false });
+                  }
+                }}
+              >
+                <RetinaImg
+                  name={'icon-thread-disclosure.png'}
+                  mode={RetinaImg.Mode.ContentIsMask}
+                />
+              </div>
+              <div role="menu" className="secondary-items" onMouseDown={this._onMenuClick}>
+                {menu}
+              </div>
+            </>
+          )}
         </div>
       );
     } else {
