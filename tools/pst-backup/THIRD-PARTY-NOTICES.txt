@@ -1,0 +1,22 @@
+MailBridge PST Backup helper
+
+MsgKit 3.0.5, MIT, (C) 2015-2026 Magic-Sessions
+Source: https://github.com/Sicos1977/MsgKit/tree/7d195fde49cea355877b320e721df2114e108784
+MimeKit 4.17.0, MIT, Jeffrey Stedfast
+Source: https://github.com/jstedfast/MimeKit/tree/4.17.0
+Newtonsoft.Json 13.0.3, MIT, James Newton-King
+Source: https://github.com/JamesNK/Newtonsoft.Json/tree/0a2e291c0d9c0c7675d445703e51750363a549ef
+BouncyCastle.Cryptography 2.6.2, MIT, Legion of the Bouncy Castle Inc.
+Source: https://github.com/bcgit/bc-csharp/tree/b4f2f6ad76bcd1f11f365ee50cc7447fbce79077
+OpenMcdf 3.1.4, MPL-2.0, Copyright 2010-2026 Federico Blaseotto, Jeremy Powell
+The unmodified OpenMcdf library is distributed separately as OpenMcdf.dll.
+Its complete corresponding source is available at:
+https://github.com/openmcdf/openmcdf/tree/11ffb7cafff6eea99639df6b2b249dcf6bcca3ef
+https://github.com/openmcdf/openmcdf/archive/11ffb7cafff6eea99639df6b2b249dcf6bcca3ef.zip
+
+Microsoft compatibility libraries, MIT, Copyright .NET Foundation and Contributors:
+Microsoft.Bcl.HashCode 6.0.0, System.Buffers 4.6.1, System.Memory 4.6.3,
+System.Numerics.Vectors 4.6.1, System.Runtime.CompilerServices.Unsafe 6.1.2.
+Source: https://github.com/dotnet/runtime
+
+Full license texts are included in the licenses directory.

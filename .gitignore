@@ -82,3 +82,7 @@ client_secret.json
 /playwright/test-results/
 .venv/
 /mailbridge-artifacts/
+
+/tools/pst-backup/bin/
+/tools/pst-backup/obj/
+/app/mailbridge-tools/pst-backup/

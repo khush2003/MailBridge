@@ -74,3 +74,35 @@ The private configuration directory is `%APPDATA%/MailBridge` on Windows. Its `m
 For a replacement PC or Windows user, start with a fresh MailBridge profile and quit before adding accounts. Copy only the backed-up `mailbridge/blobs`, `mailbridge/records`, and `mailbridge/state` directories into the fresh profile. Keep the new profile's settings and device identity; do not copy the old `config.json`, `settings.json`, or `sync-journal.json` into it. Reopen MailBridge, add the same company email address, join the archive using the saved pairing code, and confirm the new device on both PCs. This restores mail while generating new credentials and delivery receipts. Permanent cloud archive mode can also download existing cloud copies; transfer-buffer mode requires the local backup for mail already collected from Drive.
 
 The fork's source remains GPL-3.0, with the upstream Mailspring/Mailspring-Sync notices preserved. MailBridge is independent of Microsoft and the upstream Mailspring service.
+
+### PST backups (0.1.3)
+
+In **Archive & sync → PST backups**, choose a folder outside the live MailBridge profile,
+then click **Back up now**. To schedule snapshots, enable **Back up automatically** and
+choose daily or weekly. Due backups start while the main mail window is open; a failed
+scheduled attempt retries no more than once an hour. Classic Outlook must be installed
+and its profile accessible. Complete any Outlook profile or password prompts.
+
+Backups export retained received and sent mail, attachments, account/folder placement,
+read status and flags. Locally hidden mail is included under its local Trash/Junk folder.
+Drafts, contacts and calendars are excluded. Each run writes a fresh dated snapshot;
+previous successful backups are never overwritten or automatically deleted. Large
+archives are split into PST parts at approximately 20 GiB. Allow substantial free disk
+space and time for a full snapshot, especially after importing a 16 GiB archive.
+
+The permanent live MIME archive stays in `%APPDATA%\\MailBridge\\mailbridge`;
+AppData is persistent storage, not a temporary directory. PSTs are additional portable
+backups. Copy completed snapshots to another disk for protection against disk failure.
+Incomplete attempts remain in `.mailbridge-incomplete-*` folders and do not count as a
+successful backup. After a canceled or timed-out operation, close any leftover backup
+store in Outlook before deleting its incomplete folder.
+
+Verification covers helper compilation on Windows, EML/MSG round trips including
+Unicode, original dates, recipients and attachment bytes, backup completion gating,
+error/cancel handling, and the actual settings interface. A real PST export/import with
+classic Outlook and the user's 16 GiB archive still requires a Windows pilot; CI has no
+Outlook installation or licensed profile.
+
+This version also loads the MailBridge main interface immediately, gives new and reopened
+popout drafts the MailBridge header, and finishes account setup without a subscription
+or newsletter page.

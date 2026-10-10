@@ -16,7 +16,7 @@ const ComposerViewForDraftClientId = InflatesDraftClientId(ComposerView);
 
 class ComposerWithWindowProps extends React.Component<
   Record<string, unknown>,
-  { headerMessageId: string; errorMessage?: string; errorDetail?: string }
+  { headerMessageId: string; errorMessage?: string; errorDetail?: string; title?: string }
 > {
   static displayName = 'ComposerWithWindowProps';
   static containerRequired = false;
@@ -35,7 +35,7 @@ class ComposerWithWindowProps extends React.Component<
     }
     const draft = new Message({}).fromJSON(draftJSON);
     DraftStore._createSession(headerMessageId, draft);
-    this.state = windowProps;
+    this.state = { ...windowProps, title: draft.subject || localized('New Message') };
 
     // Set the OS window title immediately based on the draft subject (if any)
     const subject = draft.subject && draft.subject.trim();
@@ -50,8 +50,9 @@ class ComposerWithWindowProps extends React.Component<
     }
   }
 
-  componentDidUpdate() {
-    this._composerComponent.focus();
+  componentDidUpdate(previousProps, previousState) {
+    if (previousState.headerMessageId !== this.state.headerMessageId)
+      this._composerComponent?.focus();
   }
 
   _onDraftReady = async () => {
@@ -64,6 +65,7 @@ class ComposerWithWindowProps extends React.Component<
       const d = session.draft();
       if (!d) return;
       const subject = d.subject && d.subject.trim();
+      this.setState({ title: subject || localized('New Message') });
       AppEnv.getCurrentWindow().setTitle(
         subject || (newDraft ? localized('New Message') : localized('Message'))
       );
@@ -77,15 +79,36 @@ class ComposerWithWindowProps extends React.Component<
   };
 
   render() {
+    const win = () => AppEnv.getCurrentWindow();
     return (
-      <ComposerViewForDraftClientId
-        ref={(cm) => {
-          this._composerComponent = cm;
-        }}
-        onDraftReady={this._onDraftReady}
-        headerMessageId={this.state.headerMessageId}
-        className="composer-full-window"
-      />
+      <div className="mailbridge-composer-window">
+        <div className="mailbridge-composer-appbar">
+          <span className="brand">MailBridge</span>
+          <span className="title">{this.state.title}</span>
+          <div className="controls">
+            <button aria-label="Minimize" onClick={() => win().minimize()}>
+              ―
+            </button>
+            <button
+              aria-label="Maximize or restore"
+              onClick={() => (win().isMaximized() ? win().unmaximize() : win().maximize())}
+            >
+              □
+            </button>
+            <button aria-label="Close" onClick={() => win().close()}>
+              ×
+            </button>
+          </div>
+        </div>
+        <ComposerViewForDraftClientId
+          ref={(cm) => {
+            this._composerComponent = cm;
+          }}
+          onDraftReady={this._onDraftReady}
+          headerMessageId={this.state.headerMessageId}
+          className="composer-full-window"
+        />
+      </div>
     );
   }
 

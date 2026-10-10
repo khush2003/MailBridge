@@ -261,6 +261,7 @@ class MailBridgeController extends EventEmitter {
       this.publish({});
       return;
     }
+    this.checkScheduledBackup();
     this.ticking = true;
     try {
       const config = this.settings();
@@ -393,6 +394,7 @@ class MailBridgeController extends EventEmitter {
   async importOutlook(accountId: string, onProgress: (message: string) => void = () => {}) {
     if (process.platform !== 'win32')
       throw new Error('Outlook PST import requires classic Outlook on Windows');
+    if (this.backupRunning) throw new Error('Wait for the PST backup to finish first');
     if (this.importing) throw new Error('An Outlook import is already running');
     const account = AccountStore.accounts().find((a) => a.id === accountId);
     if (!account || !this.bridge?._clients[accountId])
@@ -450,6 +452,102 @@ class MailBridgeController extends EventEmitter {
   importAbort: AbortController | null = null;
   cancelOutlookImport() {
     this.importAbort?.abort();
+  }
+
+  backupRunning = false;
+  backupAbort: AbortController | null = null;
+  lastBackupAttempt = 0;
+  async chooseBackupFolder() {
+    const chosen = await dialog.showOpenDialog(require('@electron/remote').getCurrentWindow(), {
+      title: 'Choose where to save PST backups',
+      properties: ['openDirectory', 'createDirectory'],
+    });
+    if (chosen.canceled || !chosen.filePaths[0]) return false;
+    const folder = fs.realpathSync(chosen.filePaths[0]);
+    const local = path.resolve(this.root);
+    if (
+      folder === local ||
+      folder.startsWith(local + path.sep) ||
+      local.startsWith(folder + path.sep)
+    )
+      throw new Error('Choose a backup folder separate from the live MailBridge archive.');
+    return this.saveSettings({ backupFolder: folder });
+  }
+  checkScheduledBackup() {
+    const config = this.settings();
+    const interval = (config.backupInterval === 'daily' ? 1 : 7) * 24 * 60 * 60 * 1000;
+    if (
+      process.platform !== 'win32' ||
+      !config.backupEnabled ||
+      !config.backupFolder ||
+      this.importing ||
+      this.backupRunning
+    )
+      return;
+    if (
+      Date.now() - (config.lastBackup?.completedAt || 0) < interval ||
+      Date.now() - this.lastBackupAttempt < 60 * 60 * 1000
+    )
+      return;
+    this.backupPst().catch(() => {});
+  }
+  async backupPst() {
+    if (process.platform !== 'win32')
+      throw new Error('PST backups require classic Outlook on Windows');
+    if (this.importing || this.backupRunning)
+      throw new Error('Wait for the current Outlook operation to finish.');
+    const config = this.settings();
+    if (!config.backupFolder) throw new Error('Choose a PST backup folder first.');
+    this.backupRunning = true;
+    this.lastBackupAttempt = Date.now();
+    this.backupAbort = new AbortController();
+    this.publish({
+      backupRunning: true,
+      backupProgress: { message: 'Preparing PST backup…', count: 0 },
+    });
+    try {
+      const { exportPstBackup } = require('./pst-backup');
+      const result = await exportPstBackup({
+        root: this.root,
+        destination: config.backupFolder,
+        executable: path.join(
+          app.getAppPath().replace(/app\.asar$/, 'app.asar.unpacked'),
+          'mailbridge-tools',
+          'pst-backup',
+          'MailBridge.PstBackup.exe'
+        ),
+        signal: this.backupAbort.signal,
+        onProgress: (backupProgress: any) => this.publish({ backupProgress }),
+      });
+      await this.saveSettings({ lastBackup: result });
+      this.publish({
+        backupProgress: {
+          message: `Backed up ${result.count} messages to ${result.path}`,
+          count: result.count,
+        },
+      });
+      return result;
+    } catch (error) {
+      this.publish({
+        backupProgress: {
+          ...this.publicStatus.backupProgress,
+          message: error.message,
+          error: true,
+        },
+      });
+      throw error;
+    } finally {
+      this.backupRunning = false;
+      this.backupAbort = null;
+      this.publish({ backupRunning: false });
+    }
+  }
+  cancelPstBackup() {
+    this.backupAbort?.abort();
+  }
+  openBackupFolder() {
+    const folder = this.settings().backupFolder;
+    if (folder) return shell.openPath(folder);
   }
 
   openArchive() {

@@ -1,1 +1,12 @@
-{"name":"mailbridge","version":"0.1.0","main":"./lib/main","description":"Retained mail and encrypted two-PC Google Drive synchronization","license":"GPL-3.0","private":true,"engines":{"mailspring":"*"}}
+{
+  "name": "mailbridge",
+  "version": "0.1.0",
+  "main": "./lib/main",
+  "description": "Retained mail and encrypted two-PC Google Drive synchronization",
+  "license": "GPL-3.0",
+  "private": true,
+  "engines": {
+    "mailspring": "*"
+  },
+  "syncInit": true
+}

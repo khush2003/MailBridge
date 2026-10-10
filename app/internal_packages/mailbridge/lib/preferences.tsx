@@ -74,7 +74,7 @@ export default class ArchivePreferences extends React.Component<Record<string, n
   render() {
     const { status, config, message, pairing, clientId, clientSecret } = this.state;
     const importing = this.state.importing || status.importRunning;
-    const busy = this.state.busy || importing;
+    const busy = this.state.busy || importing || status.backupRunning;
     const importMessage = this.state.importMessage || status.importProgress?.message;
     const importError = this.state.importMessage
       ? this.state.importError
@@ -381,6 +381,82 @@ export default class ArchivePreferences extends React.Component<Record<string, n
             <button onClick={() => MailBridge.openArchive()}>Open local message archive</button>
           </div>
         </section>
+        {MailBridge.outlookImportAvailable() && (
+          <section>
+            <h2>PST backups</h2>
+            <p>
+              Export complete retained mail, including Sent mail and attachments, into a new PST
+              backup. Classic Outlook must be installed. Backups run while MailBridge is open.
+            </p>
+            <p className="mb-muted">Live mail storage: {MailBridge.root}</p>
+            <div className="mb-inline">
+              <button
+                disabled={busy}
+                onClick={() => this.perform(() => MailBridge.chooseBackupFolder())}
+              >
+                Choose backup folder
+              </button>
+              {config.backupFolder && (
+                <button onClick={() => MailBridge.openBackupFolder()}>Open backup folder</button>
+              )}
+            </div>
+            <p className="mb-muted">{config.backupFolder || 'No backup folder selected.'}</p>
+            <label className="mb-check">
+              <input
+                type="checkbox"
+                checked={config.backupEnabled || false}
+                disabled={busy || !config.backupFolder}
+                onChange={(e) =>
+                  this.perform(() => MailBridge.saveSettings({ backupEnabled: e.target.checked }))
+                }
+              />
+              Back up automatically
+            </label>
+            <label>
+              Backup frequency
+              <select
+                value={config.backupInterval || 'weekly'}
+                disabled={busy}
+                onChange={(e) =>
+                  this.perform(() => MailBridge.saveSettings({ backupInterval: e.target.value }))
+                }
+              >
+                <option value="weekly">Every week</option>
+                <option value="daily">Every day</option>
+              </select>
+            </label>
+            <p>
+              Each backup creates a complete snapshot. Older backups are kept; remove unwanted
+              snapshots yourself to manage disk space. Incomplete attempts are marked separately.
+            </p>
+            <div className="mb-inline">
+              <button
+                className="btn btn-emphasis"
+                disabled={busy || !config.backupFolder}
+                onClick={() => this.perform(() => MailBridge.backupPst())}
+              >
+                {status.backupRunning ? 'Backing up…' : 'Back up now'}
+              </button>
+              {status.backupRunning && (
+                <button onClick={() => MailBridge.cancelPstBackup()}>Cancel backup</button>
+              )}
+            </div>
+            {status.backupProgress?.message && (
+              <div className="mb-feedback" role={status.backupProgress.error ? 'alert' : 'status'}>
+                {status.backupProgress.message}
+                {status.backupRunning && status.backupProgress.total
+                  ? ` · ${status.backupProgress.count} of ${status.backupProgress.total} messages`
+                  : ''}
+              </div>
+            )}
+            {config.lastBackup && (
+              <p className="mb-muted">
+                Last completed backup: {new Date(config.lastBackup.completedAt).toLocaleString()} ·{' '}
+                {config.lastBackup.count} messages
+              </p>
+            )}
+          </section>
+        )}
         {MailBridge.outlookImportAvailable() && (
           <section>
             <h2>Import existing Outlook mail</h2>

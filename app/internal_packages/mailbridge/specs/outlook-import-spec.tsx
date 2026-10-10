@@ -74,7 +74,43 @@ describe('Outlook PST import feedback', () => {
     const button = getByRole('button', { name: 'Import Outlook PST' }) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
     expect(getByText('Select a destination account to enable PST import.')).not.toBe(null);
-    fireEvent.change(getByRole('combobox'), { target: { value: 'second' } });
+    fireEvent.change(getByRole('combobox', { name: 'Destination account' }), {
+      target: { value: 'second' },
+    });
     expect(button.disabled).toBe(false);
+  });
+  it('keeps backup actions disabled until a destination folder is chosen', async () => {
+    spyOn(AccountStore, 'accounts').andReturn([]);
+    spyOn(MailBridge, 'chooseBackupFolder').andReturn(Promise.resolve(false));
+    const { getByRole } = render(<ArchivePreferences />);
+    expect((getByRole('button', { name: 'Back up now' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (getByRole('checkbox', { name: 'Back up automatically' }) as HTMLInputElement).disabled
+    ).toBe(true);
+    await act(async () => {
+      fireEvent.click(getByRole('button', { name: 'Choose backup folder' }));
+    });
+    expect(MailBridge.chooseBackupFolder).toHaveBeenCalled();
+  });
+
+  it('keeps Outlook import disabled during a backup and exposes backup cancellation', () => {
+    spyOn(AccountStore, 'accounts').andReturn([
+      { id: 'company', emailAddress: 'person@example.test' },
+    ]);
+    (MailBridge.status as any).andReturn({
+      phase: 'local',
+      peers: [],
+      mailSyncInitialized: true,
+      backupRunning: true,
+      backupProgress: { message: 'Backing up retained mail', count: 100, total: 500 },
+    });
+    spyOn(MailBridge, 'cancelPstBackup');
+    const { getByRole, getByText } = render(<ArchivePreferences />);
+    expect(
+      (getByRole('button', { name: 'Import Outlook PST' }) as HTMLButtonElement).disabled
+    ).toBe(true);
+    expect(getByText('Backing up retained mail · 100 of 500 messages')).not.toBe(null);
+    fireEvent.click(getByRole('button', { name: 'Cancel backup' }));
+    expect(MailBridge.cancelPstBackup).toHaveBeenCalled();
   });
 });

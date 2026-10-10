@@ -85,6 +85,16 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Verify Outlook export MIME serialization
         run: powershell.exe -NoProfile -File test/mailbridge/outlook-export.ps1
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build and verify PST backup helper
+        shell: pwsh
+        run: |
+          dotnet build tools/pst-backup/MailBridge.PstBackup.csproj -f net48 -c Release -p:RestoreLockedMode=true -o app/mailbridge-tools/pst-backup
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & app/mailbridge-tools/pst-backup/MailBridge.PstBackup.exe --self-test
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Install desktop dependencies
         run: npm ci
       - name: Verify sync and type checking

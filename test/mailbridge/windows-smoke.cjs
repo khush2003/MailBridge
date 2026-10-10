@@ -3,8 +3,16 @@ const { _electron: electron, expect } = require('@playwright/test');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 (async () => {
   const root = path.resolve('app/dist/MailBridge-win32-x64');
+  if (process.platform === 'win32') {
+    const applicationDirectory = process.env.MAILBRIDGE_DESKTOP_BINARY ? path.dirname(process.env.MAILBRIDGE_DESKTOP_BINARY) : root;
+    const helper = path.join(applicationDirectory, 'resources', 'app.asar.unpacked', 'mailbridge-tools', 'pst-backup', 'MailBridge.PstBackup.exe');
+    assert.ok(fs.existsSync(helper), 'PST backup helper must ship with the application');
+    const result = execFileSync(helper, ['--self-test'], { encoding: 'utf8', timeout: 60000 });
+    assert.equal(JSON.parse(result.trim()).selfTest, 'passed', 'Installed PST conversion dependencies must work');
+  }
   const config = fs.mkdtempSync(path.join(os.tmpdir(), 'mailbridge-smoke-'));
   const application = await electron.launch({ executablePath: process.env.MAILBRIDGE_DESKTOP_BINARY || path.join(root, 'MailBridge.exe'),
     args: ['--config-dir-path', config], timeout: 60000 });
