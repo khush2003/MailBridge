@@ -26,6 +26,31 @@ export default class ArchivePreferences extends React.Component<Record<string, n
     updateMessage: '',
     updateReady: false,
   };
+  importFeedback: HTMLDivElement;
+  backupFeedback: HTMLDivElement;
+  passwordFeedback: HTMLDivElement;
+  updateFeedback: HTMLDivElement;
+  componentDidUpdate(_previousProps, previousState) {
+    if (
+      previousState.importing !== this.state.importing ||
+      Boolean(previousState.status.importRunning) !== Boolean(this.state.status.importRunning)
+    )
+      this.importFeedback?.scrollIntoView({ block: 'nearest' });
+    if (
+      Boolean(previousState.status.backupRunning) !== Boolean(this.state.status.backupRunning) ||
+      (!previousState.status.backupProgress && this.state.status.backupProgress)
+    )
+      this.backupFeedback?.scrollIntoView({ block: 'nearest' });
+    if (previousState.passwordMessage !== this.state.passwordMessage)
+      this.passwordFeedback?.scrollIntoView({ block: 'nearest' });
+    if (
+      previousState.updateMessage !== this.state.updateMessage &&
+      (!previousState.updateMessage ||
+        previousState.busy !== this.state.busy ||
+        previousState.updateReady !== this.state.updateReady)
+    )
+      this.updateFeedback?.scrollIntoView({ block: 'nearest' });
+  }
   timer: any;
   mounted = false;
   componentDidMount() {
@@ -428,7 +453,13 @@ export default class ArchivePreferences extends React.Component<Record<string, n
             )}
           </div>
           {this.state.updateMessage && (
-            <div className="mb-feedback" role="status">
+            <div
+              ref={(element) => {
+                this.updateFeedback = element;
+              }}
+              className="mb-feedback"
+              role="status"
+            >
               {this.state.updateMessage}
             </div>
           )}
@@ -491,7 +522,13 @@ export default class ArchivePreferences extends React.Component<Record<string, n
             )}
           </div>
           {this.state.passwordMessage && (
-            <div className="mb-feedback" role="status">
+            <div
+              ref={(element) => {
+                this.passwordFeedback = element;
+              }}
+              className="mb-feedback"
+              role="status"
+            >
               {this.state.passwordMessage}
             </div>
           )}
@@ -602,7 +639,13 @@ export default class ArchivePreferences extends React.Component<Record<string, n
               )}
             </div>
             {status.backupProgress?.message && (
-              <div className="mb-feedback" role={status.backupProgress.error ? 'alert' : 'status'}>
+              <div
+                ref={(element) => {
+                  this.backupFeedback = element;
+                }}
+                className="mb-feedback"
+                role={status.backupProgress.error ? 'alert' : 'status'}
+              >
                 {status.backupProgress.message}
                 {status.backupRunning && status.backupProgress.total
                   ? ` · ${status.backupProgress.count} of ${status.backupProgress.total} messages`
@@ -665,7 +708,13 @@ export default class ArchivePreferences extends React.Component<Record<string, n
               </button>
             )}
             {importMessage && (
-              <div className="mb-feedback" role={importError ? 'alert' : 'status'}>
+              <div
+                ref={(element) => {
+                  this.importFeedback = element;
+                }}
+                className="mb-feedback"
+                role={importError ? 'alert' : 'status'}
+              >
                 {importMessage}
               </div>
             )}
