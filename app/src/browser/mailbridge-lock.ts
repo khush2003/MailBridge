@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain } from 'electron';
+import { BrowserWindow, ipcMain, app } from 'electron';
 import { isMailspringWindowContents } from './mailspring-window';
 const { PasswordLock } = require('../mailbridge/password-lock');
 let lock: any;
@@ -9,12 +9,31 @@ export const onMailbridgeLock = (listener: () => void) => {
 export const mailbridgeLocked = () => Boolean(lock?.locked);
 export function initializeMailbridgeLock(configDirectory: string) {
   lock = new PasswordLock(configDirectory);
+  const hiddenPreviews = new Set<BrowserWindow>();
+  const hidePreview = (window: BrowserWindow) => {
+    if (lock.locked && !isMailspringWindowContents(window.webContents) && window.isVisible()) {
+      hiddenPreviews.add(window);
+      window.hide();
+    }
+  };
+  app.on('browser-window-created', (_event, window) => {
+    window.on('show', () => hidePreview(window));
+    window.on('closed', () => hiddenPreviews.delete(window));
+  });
   const broadcast = () => {
     const status = lock.status();
     if (status.locked) lockListener?.();
-    BrowserWindow.getAllWindows().forEach((window) =>
-      window.webContents.send('mailbridge-lock-changed', status)
-    );
+    BrowserWindow.getAllWindows().forEach((window) => {
+      hidePreview(window);
+      if (isMailspringWindowContents(window.webContents))
+        window.webContents.send('mailbridge-lock-changed', status);
+    });
+    if (!status.locked) {
+      hiddenPreviews.forEach((window) => {
+        if (!window.isDestroyed()) window.show();
+      });
+      hiddenPreviews.clear();
+    }
     return status;
   };
   ipcMain.on('mailbridge-lock-status', (event) => {

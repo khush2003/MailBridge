@@ -21,12 +21,15 @@ test('streamed update is published only after checksum and size verification', a
   const bytes = Buffer.from('fixture installer bytes');
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'mb-update-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
-  const server = http.createServer((_, response) => { response.end(bytes); });
+  let requests = 0;
+  const server = http.createServer((_, response) => { requests++; response.end(bytes); });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   t.after(() => new Promise(resolve => server.close(resolve)));
   const manifest = { version: '0.1.3', size: bytes.length, sha256: crypto.createHash('sha256').update(bytes).digest('hex'), url: `http://127.0.0.1:${server.address().port}/file.exe` };
   const file = await downloadUpdate(manifest, directory);
   assert.deepEqual(fs.readFileSync(file), bytes);
+  assert.equal(await downloadUpdate(manifest, directory), file);
+  assert.equal(requests, 1, 'A verified downloaded installer must be reused');
   await assert.rejects(downloadUpdate({ ...manifest, sha256: '0'.repeat(64) }, directory), /checksum/);
   await assert.rejects(downloadUpdate({ ...manifest, size: 1 }, directory), /size/);
   assert.deepEqual(fs.readdirSync(directory), [path.basename(file)]);

@@ -32,6 +32,10 @@ export default class ArchivePreferences extends React.Component<Record<string, n
     this.mounted = true;
     ipcRenderer.on('mailbridge-update-status', this.updateStatus);
     ipcRenderer
+      .invoke('mailbridge-update-get-status')
+      .then((value) => this.updateStatus(null, value))
+      .catch(() => {});
+    ipcRenderer
       .invoke('mailbridge-lock-action', 'status')
       .then((value) => {
         if (this.mounted) this.setState({ passwordEnabled: value.enabled });

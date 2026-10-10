@@ -20,6 +20,11 @@ function newerVersion(candidate, installed) {
 async function downloadUpdate(manifest, directory, onProgress = () => {}) {
   await fs.promises.mkdir(directory, { recursive: true });
   const target = path.join(directory, `MailBridge-Setup-${manifest.version}-${manifest.sha256.slice(0, 12)}.exe`);
+  if (fs.existsSync(target) && (await fs.promises.stat(target)).size === manifest.size) {
+    const cachedHash = crypto.createHash('sha256');
+    for await (const chunk of fs.createReadStream(target)) cachedHash.update(chunk);
+    if (cachedHash.digest('hex') === manifest.sha256) return target;
+  }
   const partial = `${target}.${crypto.randomUUID()}.partial`;
   const response = await fetch(manifest.url, { signal: AbortSignal.timeout(20 * 60 * 1000) });
   if (!response.ok) throw new Error(`Update download failed (${response.status})`);

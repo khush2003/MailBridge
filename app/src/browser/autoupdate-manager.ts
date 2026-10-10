@@ -27,6 +27,11 @@ export default class AutoUpdateManager extends EventEmitter {
           throw new Error('Unlock MailBridge first.');
         return this.check();
       });
+      ipcMain.handle('mailbridge-update-get-status', (event) => {
+        if (!isMailspringWindowContents(event.sender) || mailbridgeLocked())
+          throw new Error('Unlock MailBridge first.');
+        return this.details;
+      });
       ipcMain.handle('mailbridge-update-install', (event) => {
         if (!isMailspringWindowContents(event.sender) || mailbridgeLocked())
           throw new Error('Unlock MailBridge first.');
