@@ -25,6 +25,7 @@ export default class ArchivePreferences extends React.Component<Record<string, n
     passwordMessage: '',
     updateMessage: '',
     updateReady: false,
+    updateRequested: false,
   };
   importFeedback: HTMLDivElement;
   backupFeedback: HTMLDivElement;
@@ -44,6 +45,7 @@ export default class ArchivePreferences extends React.Component<Record<string, n
     if (previousState.passwordMessage !== this.state.passwordMessage)
       this.passwordFeedback?.scrollIntoView({ block: 'nearest' });
     if (
+      this.state.updateRequested &&
       previousState.updateMessage !== this.state.updateMessage &&
       (!previousState.updateMessage ||
         previousState.busy !== this.state.busy ||
@@ -124,7 +126,7 @@ export default class ArchivePreferences extends React.Component<Record<string, n
       });
   };
   checkForUpdates = async () => {
-    this.setState({ busy: true, updateMessage: 'Checking for updates…' });
+    this.setState({ busy: true, updateRequested: true, updateMessage: 'Checking for updates…' });
     try {
       this.updateStatus(null, await ipcRenderer.invoke('mailbridge-update-check'));
     } catch (error) {

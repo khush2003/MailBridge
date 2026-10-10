@@ -217,6 +217,7 @@ function buildPackagerOptions() {
     appCopyright: `Copyright (C) 2014-${new Date().getFullYear()} Foundry 376, LLC. All rights reserved.`,
     derefSymlinks: false,
     asar: {
+      ...require('./mailbridge/asar-options'),
       unpack:
         '{' +
         [

@@ -203,7 +203,7 @@ const { execFileSync } = require('node:child_process');
     const importButton = preferences.getByRole('button', { name: 'Import Outlook PST', exact: true });
     await expect(importButton).toBeEnabled();
     await importButton.click();
-    await expect(preferences.getByText('Copying PST: 37% (5.9 of 16.0 GB). Your original is unchanged.', { exact: true })).toBeInViewport();
+    await expect(preferences.getByText('Copying PST: 37% (5.9 of 16.0 GB). Your original is unchanged.', { exact: true })).toBeInViewport({ ratio: 1 });
     await expect(preferences.getByRole('button', { name: 'Importing Outlook PST…', exact: true })).toBeDisabled();
     await preferences.waitForTimeout(250);
     await preferences.screenshot({ path: 'mailbridge-artifacts/windows-pst-import-progress.png' });

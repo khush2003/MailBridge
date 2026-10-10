@@ -9,6 +9,7 @@ const { execFileSync } = require('node:child_process');
   if (process.platform === 'win32') {
     const applicationDirectory = process.env.MAILBRIDGE_DESKTOP_BINARY ? path.dirname(process.env.MAILBRIDGE_DESKTOP_BINARY) : root;
     const helper = path.join(applicationDirectory, 'resources', 'app.asar.unpacked', 'mailbridge-tools', 'pst-backup', 'MailBridge.PstBackup.exe');
+    assert.ok(fs.existsSync(path.join(applicationDirectory, 'resources', 'app.asar.unpacked', 'mailbridge-tools', 'import-outlook.ps1')), 'Outlook import script must be available on disk');
     assert.ok(fs.existsSync(helper), 'PST backup helper must ship with the application');
     const result = execFileSync(helper, ['--self-test'], { encoding: 'utf8', timeout: 60000 });
     assert.equal(JSON.parse(result.trim()).selfTest, 'passed', 'Installed PST conversion dependencies must work');
