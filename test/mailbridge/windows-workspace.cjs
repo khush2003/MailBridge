@@ -54,6 +54,8 @@ const { execFileSync } = require('node:child_process');
       for (const candidate of application.windows()) if (await candidate.locator('.mb-office-header').isVisible().catch(() => false)) { page = candidate; return true; }
       return false;
     }, { timeout: 60000 }).toBe(true);
+    await page.evaluate(()=>require('@electron/remote').getCurrentWindow().setContentSize(1280,760));
+    await expect.poll(()=>page.evaluate(()=>window.innerWidth)).toBe(1280);
     await expect(page.locator('body')).toHaveClass(/theme-ui-mailbridge/);
     await expect(page.getByRole('button', { name: 'New Email', exact: true })).toBeVisible();
     const title = process.env.MAILBRIDGE_WORKSPACE_SUBJECT || 'Message 43001';
@@ -137,13 +139,13 @@ const { execFileSync } = require('node:child_process');
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await page.waitForFunction(() => document.getAnimations().every(animation => animation.effect.getTiming().iterations === Infinity || animation.playState !== 'running'));
     await page.screenshot({ animations: 'disabled', path: 'mailbridge-artifacts/windows-workspace.png' });
-    await page.evaluate(()=>require('@electron/remote').getCurrentWindow().setSize(980,720));
-    await expect.poll(()=>page.evaluate(()=>window.innerWidth)).toBeLessThan(1100);
+    await page.evaluate(()=>require('@electron/remote').getCurrentWindow().setContentSize(980,720));
+    await expect.poll(()=>page.evaluate(()=>window.innerWidth)).toBe(980);
     await expect(page.locator('.mb-office-ribbon .mb-command-folder')).toHaveCount(0);
     const clippedCommands=await page.locator('.mb-office-ribbon button').evaluateAll(buttons=>buttons.filter(button=>{const r=button.getBoundingClientRect();return r.right>window.innerWidth || r.left<0;}).map(button=>button.textContent));
     assert.deepEqual(clippedCommands,[],'Compact ribbon must keep every visible command on screen');
     await page.screenshot({animations:'disabled',path:'mailbridge-artifacts/windows-workspace-980.png'});
-    await page.evaluate(()=>require('@electron/remote').getCurrentWindow().setSize(1280,760));
+    await page.evaluate(()=>require('@electron/remote').getCurrentWindow().setContentSize(1280,760));
     await expect.poll(()=>page.evaluate(()=>window.innerWidth)).toBe(1280);
 
     await page.evaluate(() => { const m=require('mailspring-exports'); m.Actions.popoutThread(m.FocusedContentStore.focused('thread')); });
