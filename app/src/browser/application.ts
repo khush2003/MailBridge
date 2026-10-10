@@ -43,6 +43,7 @@ import {
 } from './notification-ipc';
 import WindowsTaskbarManager from './windows-taskbar-manager';
 import { resetThemeForRecovery } from './theme-recovery';
+import { initializeMailbridgeLock } from './mailbridge-lock';
 
 // The application's singleton class.
 //
@@ -85,6 +86,7 @@ export default class Application extends EventEmitter {
     this.devMode = devMode;
     this.specMode = specMode;
     this.safeMode = safeMode;
+    initializeMailbridgeLock(configDirPath);
 
     this.fileListCache = new FileListCache();
     this.mailspringProtocolHandler = new MailspringProtocolHandler({

@@ -13,6 +13,7 @@ import {
 import MailBridge from '../../../src/mailbridge/controller';
 import ArchivePreferences from './preferences';
 import ThreadListStore from '../../thread-list/lib/thread-list-store';
+import DraftListStore from '../../draft-list/lib/draft-list-store';
 import ThreadSearchBar from '../../thread-search/lib/thread-search-bar';
 import SearchStore from '../../thread-search/lib/search-store';
 import MovePickerPopover from '../../category-picker/lib/move-picker-popover';
@@ -180,7 +181,9 @@ class OfficeHeader extends React.Component<
   componentDidMount() {
     this.updateMailbox();
     this.observeSidebar();
+    const draftSelection = DraftListStore.selectionObservable().subscribe(() => this.forceUpdate());
     this.unsubscribers = [
+      () => draftSelection.dispose(),
       ThreadListStore.listen(() =>
         this.setState({ selected: ThreadListStore.dataSource()?.selection.count() || 0 })
       ),
@@ -233,8 +236,9 @@ class OfficeHeader extends React.Component<
   render() {
     const { tab, thread, email, mailbox, selected } = this.state;
     const count = selected || (thread ? 1 : 0);
-    const threads = this.selectedThreads();
     const perspective = FocusedPerspectiveStore.current();
+    const isDrafts = 'drafts' in perspective && perspective.drafts === true;
+    const threads = isDrafts ? [] : this.selectedThreads();
     const account = AccountStore.accountForItems(threads);
     const allRead = threads.length > 0 && threads.every((item) => !item.unread);
     const allFlagged = threads.length > 0 && threads.every((item) => item.starred);
@@ -282,7 +286,33 @@ class OfficeHeader extends React.Component<
           </button>
         </nav>
         <div className="mb-office-ribbon" role="toolbar" aria-label={`${tab} commands`}>
-          {tab === 'Home' && (
+          {tab === 'Home' && isDrafts && (
+            <>
+              <Group label="New">
+                <Command
+                  icon="mail"
+                  label="New Email"
+                  onClick={() => Actions.composeNewBlankDraft()}
+                />
+              </Group>
+              <Group label="Drafts">
+                <Command
+                  icon="delete"
+                  label="Delete drafts"
+                  disabled={!DraftListStore.dataSource()?.selection.count()}
+                  onClick={() => {
+                    const selection = DraftListStore.dataSource().selection;
+                    [...selection.items()].forEach((draft) => Actions.destroyDraft(draft));
+                    selection.clear();
+                  }}
+                />
+              </Group>
+              <Group label="Settings">
+                <Command icon="settings" label="Mail Retention" onClick={preferences} />
+              </Group>
+            </>
+          )}
+          {tab === 'Home' && !isDrafts && (
             <>
               <Group label="New">
                 <Command
@@ -468,6 +498,26 @@ class MailListHeading extends React.Component<Record<string, never>, { query: st
   }
 }
 let tab: any;
+let stopWatchingHeaders: (() => void) | undefined;
+let registeredHeaders: any[] = [];
+function registerMailHeaders() {
+  const locations = [
+    WorkspaceStore.Sheet.Threads?.Header,
+    WorkspaceStore.Sheet.Drafts?.Header,
+  ].filter(Boolean);
+  if (
+    locations.length === registeredHeaders.length &&
+    locations.every((location, index) => location === registeredHeaders[index])
+  )
+    return;
+  registeredHeaders = locations;
+  ComponentRegistry.register(OfficeHeader, { locations });
+  ComponentRegistry.register(ArchiveStatus, {
+    locations: [WorkspaceStore.Sheet.Threads?.Footer, WorkspaceStore.Sheet.Drafts?.Footer].filter(
+      Boolean
+    ),
+  });
+}
 export function activate() {
   // Default to the supplied three-pane layout; the contact pane remains available under View.
   if (AppEnv.isMainWindow() && AppEnv.config.get('core.workspace.hiddenLocations') === undefined) {
@@ -479,12 +529,12 @@ export function activate() {
     if (!AppEnv.getColumnWidth('ThreadList'))
       AppEnv.storeColumnWidth({ id: 'ThreadList', width: 300 });
   }
-  ComponentRegistry.register(OfficeHeader, { location: WorkspaceStore.Sheet.Threads.Header });
+  registerMailHeaders();
+  stopWatchingHeaders = WorkspaceStore.listen(registerMailHeaders);
   ComponentRegistry.register(MailListHeading, {
     location: WorkspaceStore.Location.ThreadList,
     modes: ['split', 'list', 'splitVertical'],
   });
-  ComponentRegistry.register(ArchiveStatus, { location: WorkspaceStore.Sheet.Threads.Footer });
   tab = new PreferencesUIStore.TabItem({
     tabId: 'Archive',
     displayName: 'Archive & sync',
@@ -494,6 +544,8 @@ export function activate() {
   PreferencesUIStore.registerPreferencesTab(tab);
 }
 export function deactivate() {
+  stopWatchingHeaders?.();
+  registeredHeaders = [];
   [ArchiveStatus, OfficeHeader, MailListHeading].forEach((component) =>
     ComponentRegistry.unregister(component)
   );

@@ -7,6 +7,9 @@
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net48'">
+    <RuntimeIdentifier>win-x86</RuntimeIdentifier>
+  </PropertyGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
     <Reference Include="Microsoft.CSharp" />
   </ItemGroup>

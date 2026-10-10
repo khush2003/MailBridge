@@ -12,6 +12,8 @@ const { execFileSync } = require('node:child_process');
   const source = process.env.MAILBRIDGE_WORKSPACE_PROFILE || path.join(native, scenario, 'b', 'config');
   const config = fs.mkdtempSync(path.join(os.tmpdir(), 'mailbridge-workspace-'));
   fs.cpSync(source, config, { recursive: true });
+  const { PasswordLock } = require('../../app/src/mailbridge/password-lock');
+  await new PasswordLock(config).configure('', 'mailbridge-test-password');
   const id = process.env.MAILBRIDGE_WORKSPACE_ACCOUNT_ID || 'c0ffee-peer';
   fs.writeFileSync(path.join(config, 'config.json'), JSON.stringify({ '*': {
     core: { keymapTemplate: 'Outlook', reading: { markAsReadDelay: -1 }, workspace: { mode: 'split' }, disabledPackages: ['mcp-server', 'open-tracking', 'link-tracking', 'activity', 'thread-sharing'] },
@@ -36,6 +38,17 @@ const { execFileSync } = require('node:child_process');
   application.on('window', attach);
   application.windows().forEach(attach);
   try {
+    let lockPage;
+    await expect.poll(async () => {
+      for (const candidate of application.windows()) if (await candidate.locator('#mb-password-overlay').isVisible().catch(() => false)) { lockPage = candidate; return true; }
+      return false;
+    }, { timeout: 60000 }).toBe(true);
+    await expect(lockPage.locator('body')).toHaveClass(/mb-app-locked/);
+    await expect(lockPage.locator('.mb-office-header')).not.toBeVisible();
+    await lockPage.screenshot({ path: 'mailbridge-artifacts/windows-password-startup.png' });
+    await lockPage.getByLabel('Password', { exact: true }).fill('mailbridge-test-password');
+    await lockPage.getByRole('button', { name: 'Unlock', exact: true }).click();
+    await expect(lockPage.locator('#mb-password-overlay')).not.toBeVisible();
     let page;
     await expect.poll(async () => {
       for (const candidate of application.windows()) if (await candidate.locator('.mb-office-header').isVisible().catch(() => false)) { page = candidate; return true; }
@@ -115,12 +128,52 @@ const { execFileSync } = require('node:child_process');
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await page.waitForFunction(() => document.getAnimations().every(animation => animation.playState !== 'running'));
     await page.screenshot({ path: 'mailbridge-artifacts/windows-workspace.png' });
+    await page.evaluate(() => { AppEnv.mailsyncBridge.sendMessageToAccount = () => {}; });
+    await page.locator('.account-sidebar').getByText('Drafts', { exact: true }).first().click();
+    await expect(page.locator('.mb-office-header')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Delete drafts', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Reply', exact: true })).toHaveCount(0);
+    const savedDraftRow = page.getByText('Saved draft interface review', { exact: true });
+    await savedDraftRow.click({ modifiers: ['Control'] });
+    await expect(page.getByRole('button', { name: 'Delete drafts', exact: true })).toBeEnabled();
+    await page.waitForTimeout(250);
+    await page.screenshot({ path: 'mailbridge-artifacts/windows-drafts.png' });
+    await savedDraftRow.dblclick();
+    let savedComposer;
+    await expect.poll(async () => {
+      for (const candidate of application.windows()) if (await candidate.locator('.mailbridge-composer-appbar').isVisible().catch(() => false)) { savedComposer = candidate; return true; }
+      return false;
+    }, { timeout: 15000 }).toBe(true);
+    await expect(savedComposer.getByPlaceholder('Subject', { exact: true })).toHaveValue('Saved draft interface review');
+    await expect(savedComposer.getByText('Saved draft body', { exact: true })).toBeVisible();
+    await savedComposer.screenshot({ path: 'mailbridge-artifacts/windows-existing-draft.png' });
+    await savedComposer.getByRole('button', { name: 'Close', exact: true }).click();
+    await expect.poll(() => savedComposer.isClosed()).toBe(true);
+    await page.locator('.account-sidebar').getByText('Inbox', { exact: true }).first().click();
     await page.getByRole('button', { name: 'Mail Retention', exact: true }).click();
     let preferences;
     await expect.poll(async () => {
       for (const candidate of application.windows()) if (await candidate.locator('.mailbridge-preferences').isVisible().catch(() => false)) { preferences = candidate; return true; }
       return false;
     }, { timeout: 15000 }).toBe(true);
+    await preferences.getByLabel('Current app password', { exact: true }).fill('mailbridge-test-password');
+    await preferences.getByLabel('New app password', { exact: true }).fill('custom-test-pw');
+    await preferences.getByLabel('Confirm new password', { exact: true }).fill('custom-test-pw');
+    await preferences.getByRole('button', { name: 'Change app password', exact: true }).click();
+    await expect(preferences.getByText('App password saved. MailBridge will lock at startup.', { exact: true })).toBeVisible();
+    await preferences.getByRole('button', { name: 'Lock now', exact: true }).click();
+    await expect(preferences.locator('#mb-password-overlay')).toBeVisible();
+    await preferences.screenshot({ path: 'mailbridge-artifacts/windows-password-lock.png' });
+    await preferences.getByLabel('Password', { exact: true }).fill('wrong');
+    await preferences.getByRole('button', { name: 'Unlock', exact: true }).click();
+    await expect(preferences.getByText('Incorrect password.', { exact: true })).toBeVisible();
+    await preferences.waitForTimeout(1100);
+    await preferences.getByLabel('Password', { exact: true }).fill('custom-test-pw');
+    await preferences.getByRole('button', { name: 'Unlock', exact: true }).click();
+    await expect(preferences.locator('#mb-password-overlay')).not.toBeVisible();
+    await preferences.getByLabel('Current app password', { exact: true }).fill('custom-test-pw');
+    await preferences.getByRole('button', { name: 'Remove app password', exact: true }).click();
+    await expect(preferences.getByText('App password removed.', { exact: true })).toBeVisible();
     const optionalDrive = preferences.getByRole('checkbox', { name: 'Use Google Drive for additional archive sync', exact: true });
     await expect(optionalDrive).not.toBeChecked();
     await expect(preferences.getByRole('button', { name: 'Connect directly', exact: true })).toHaveCount(0);
@@ -215,6 +268,15 @@ const { execFileSync } = require('node:child_process');
     await expect(composer.locator('.tokenizing-field.bcc input').first()).toHaveCSS('outline-style', 'none');
     await composer.waitForTimeout(250);
     await composer.screenshot({ path: 'mailbridge-artifacts/windows-compose.png' });
+    await page.evaluate(() => require('electron').ipcRenderer.invoke('mailbridge-lock-action', 'configure', '', 'cross-window-test'));
+    await page.evaluate(() => require('electron').ipcRenderer.invoke('mailbridge-lock-action', 'lock'));
+    await expect(page.locator('#mb-password-overlay')).toBeVisible();
+    await expect(composer.locator('#mb-password-overlay')).toBeVisible();
+    await composer.getByLabel('Password', { exact: true }).fill('cross-window-test');
+    await composer.getByRole('button', { name: 'Unlock', exact: true }).click();
+    await expect(page.locator('#mb-password-overlay')).not.toBeVisible();
+    await expect(composer.locator('#mb-password-overlay')).not.toBeVisible();
+    await page.evaluate(() => require('electron').ipcRenderer.invoke('mailbridge-lock-action', 'configure', 'cross-window-test', null));
     assert.equal(errors.length, 0, errors.join('\n'));
     console.log('Packaged workspace, full bodies, search, folder padding, readable settings tabs, all settings screens, composition, reduced motion, and optional Drive settings passed.');
   } finally { await application.close(); }

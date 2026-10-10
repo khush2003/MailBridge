@@ -1,3 +1,4 @@
+import { mailbridgeLocked, onMailbridgeLock } from './mailbridge-lock';
 import { Notification, IpcMain, IpcMainInvokeEvent, nativeImage } from 'electron';
 import path from 'path';
 import { UrlWithParsedQuery } from 'url';
@@ -50,6 +51,7 @@ const validateIconPath = (iconPath: string | undefined): string | null => {
   }
 
   const resolvedIcon = path.resolve(iconPath);
+  if (mailbridgeLocked()) return null;
   const platform = process.platform;
 
   // Always allow paths within the application's static resources
@@ -237,6 +239,10 @@ const closeNotification = (event: IpcMainInvokeEvent, id: string): void => {
  * Called from application.ts during startup.
  */
 export function registerNotificationIPCHandlers(ipcMain: IpcMain) {
+  onMailbridgeLock(() => {
+    activeNotifications.forEach(({ notification }) => notification.close());
+    activeNotifications.clear();
+  });
   ipcMain.handle('notification:display', displayNotification);
   ipcMain.handle('notification:close', closeNotification);
 }

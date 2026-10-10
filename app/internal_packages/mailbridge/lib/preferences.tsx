@@ -1,4 +1,5 @@
 import React from 'react';
+import { ipcRenderer } from 'electron';
 import { AccountStore } from 'mailspring-exports';
 import MailBridge from '../../../src/mailbridge/controller';
 const { clipboard } = require('@electron/remote');
@@ -17,11 +18,25 @@ export default class ArchivePreferences extends React.Component<Record<string, n
     importMessage: '',
     importError: false,
     importing: false,
+    passwordEnabled: false,
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+    passwordMessage: '',
+    updateMessage: '',
+    updateReady: false,
   };
   timer: any;
   mounted = false;
   componentDidMount() {
     this.mounted = true;
+    ipcRenderer.on('mailbridge-update-status', this.updateStatus);
+    ipcRenderer
+      .invoke('mailbridge-lock-action', 'status')
+      .then((value) => {
+        if (this.mounted) this.setState({ passwordEnabled: value.enabled });
+      })
+      .catch(() => {});
     this.timer = setInterval(
       () => this.setState({ status: MailBridge.status(), config: MailBridge.settings() }),
       1000
@@ -29,6 +44,7 @@ export default class ArchivePreferences extends React.Component<Record<string, n
   }
   componentWillUnmount() {
     this.mounted = false;
+    ipcRenderer.removeListener('mailbridge-update-status', this.updateStatus);
     clearInterval(this.timer);
   }
   perform = async (action: () => Promise<any>, success = '') => {
@@ -69,6 +85,58 @@ export default class ArchivePreferences extends React.Component<Record<string, n
       if (this.mounted) this.setState({ importError: true, importMessage: error.message });
     } finally {
       if (this.mounted) this.setState({ busy: false, importing: false });
+    }
+  };
+  updateStatus = (_event: any, value: any) => {
+    if (this.mounted)
+      this.setState({
+        updateMessage: value.message,
+        updateReady: value.state === 'update-available',
+      });
+  };
+  checkForUpdates = async () => {
+    this.setState({ busy: true, updateMessage: 'Checking for updates…' });
+    try {
+      this.updateStatus(null, await ipcRenderer.invoke('mailbridge-update-check'));
+    } catch (error) {
+      if (this.mounted) this.setState({ updateMessage: error.message });
+    } finally {
+      if (this.mounted) this.setState({ busy: false });
+    }
+  };
+  changeAppPassword = async (disable = false) => {
+    if (!disable && this.state.newPassword !== this.state.confirmPassword) {
+      this.setState({ passwordMessage: 'The new passwords do not match.' });
+      return;
+    }
+    this.setState({ busy: true, passwordMessage: '' });
+    try {
+      const result = await ipcRenderer.invoke(
+        'mailbridge-lock-action',
+        'configure',
+        this.state.currentPassword,
+        disable ? null : this.state.newPassword
+      );
+      if (this.mounted)
+        this.setState({
+          passwordEnabled: result.enabled,
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+          passwordMessage: result.enabled
+            ? 'App password saved. MailBridge will lock at startup.'
+            : 'App password removed.',
+        });
+    } catch (error) {
+      if (this.mounted)
+        this.setState({
+          passwordMessage: error.message.replace(
+            /^Error invoking remote method '[^']+': Error: /,
+            ''
+          ),
+        });
+    } finally {
+      if (this.mounted) this.setState({ busy: false });
     }
   };
   render() {
@@ -336,6 +404,94 @@ export default class ArchivePreferences extends React.Component<Record<string, n
             ))}
           </section>
         )}
+        <section>
+          <h2>App updates</h2>
+          <p>
+            Updates replace the app in place and preserve your accounts, mail, app password, and
+            backup settings. Connect to Tailscale to reach the private update server.
+          </p>
+          <div className="mb-inline">
+            <button disabled={busy} onClick={this.checkForUpdates}>
+              Check for updates
+            </button>
+            {this.state.updateReady && (
+              <button
+                disabled={busy}
+                onClick={() => this.perform(() => ipcRenderer.invoke('mailbridge-update-install'))}
+              >
+                Restart and update
+              </button>
+            )}
+          </div>
+          {this.state.updateMessage && (
+            <div className="mb-feedback" role="status">
+              {this.state.updateMessage}
+            </div>
+          )}
+        </section>
+        <section>
+          <h2>App password</h2>
+          <p>
+            Optionally lock access to MailBridge when it starts. Mail keeps downloading in the
+            background while locked. This access lock does not encrypt your stored mail or PST
+            backups.
+          </p>
+          {this.state.passwordEnabled && (
+            <label>
+              Current app password
+              <input
+                type="password"
+                autoComplete="current-password"
+                value={this.state.currentPassword}
+                onChange={(e) => this.setState({ currentPassword: e.target.value })}
+              />
+            </label>
+          )}
+          <label>
+            {this.state.passwordEnabled ? 'New app password' : 'Choose an app password'}
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={this.state.newPassword}
+              onChange={(e) => this.setState({ newPassword: e.target.value })}
+            />
+          </label>
+          <label>
+            Confirm new password
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={this.state.confirmPassword}
+              onChange={(e) => this.setState({ confirmPassword: e.target.value })}
+            />
+          </label>
+          <div className="mb-inline">
+            <button
+              disabled={busy || !this.state.newPassword}
+              onClick={() => this.changeAppPassword()}
+            >
+              {this.state.passwordEnabled ? 'Change app password' : 'Enable app password'}
+            </button>
+            {this.state.passwordEnabled && (
+              <>
+                <button disabled={busy} onClick={() => this.changeAppPassword(true)}>
+                  Remove app password
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() => ipcRenderer.invoke('mailbridge-lock-action', 'lock')}
+                >
+                  Lock now
+                </button>
+              </>
+            )}
+          </div>
+          {this.state.passwordMessage && (
+            <div className="mb-feedback" role="status">
+              {this.state.passwordMessage}
+            </div>
+          )}
+        </section>
         <section>
           <h2>Keep MailBridge running</h2>
           <label className="mb-check">

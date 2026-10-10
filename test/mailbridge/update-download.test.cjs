@@ -1,0 +1,33 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const http = require('node:http');
+const { verifyManifest, newerVersion, downloadUpdate } = require('../../app/src/mailbridge/update-download');
+test('only a manifest signed by the trusted publisher is accepted', () => {
+  const key = crypto.generateKeyPairSync('ed25519');
+  const data = { version: '0.1.3', size: 4, sha256: 'a'.repeat(64), url: 'http://localhost/file.exe' };
+  const bytes = Buffer.from(JSON.stringify(data));
+  const envelope = { payload: bytes.toString('base64'), signature: crypto.sign(null, bytes, key.privateKey).toString('base64') };
+  assert.deepEqual(verifyManifest(envelope, key.publicKey), data);
+  assert.throws(() => verifyManifest({ ...envelope, payload: Buffer.from('{}').toString('base64') }, key.publicKey), /signature/);
+  assert.equal(newerVersion('0.1.3', '0.1.2'), true);
+  assert.equal(newerVersion('0.1.3', '0.1.3'), false);
+  assert.equal(newerVersion('0.1.2', '0.1.3'), false);
+});
+test('streamed update is published only after checksum and size verification', async t => {
+  const bytes = Buffer.from('fixture installer bytes');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'mb-update-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const server = http.createServer((_, response) => { response.end(bytes); });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const manifest = { version: '0.1.3', size: bytes.length, sha256: crypto.createHash('sha256').update(bytes).digest('hex'), url: `http://127.0.0.1:${server.address().port}/file.exe` };
+  const file = await downloadUpdate(manifest, directory);
+  assert.deepEqual(fs.readFileSync(file), bytes);
+  await assert.rejects(downloadUpdate({ ...manifest, sha256: '0'.repeat(64) }, directory), /checksum/);
+  await assert.rejects(downloadUpdate({ ...manifest, size: 1 }, directory), /size/);
+  assert.deepEqual(fs.readdirSync(directory), [path.basename(file)]);
+});

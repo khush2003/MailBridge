@@ -106,3 +106,28 @@ Outlook installation or licensed profile.
 This version also loads the MailBridge main interface immediately, gives new and reopened
 popout drafts the MailBridge header, and finishes account setup without a subscription
 or newsletter page.
+
+### Optional app password and upgrades
+
+In **Archive & sync → App password**, enter any nonempty password and confirm it. The
+password is stored as a salted scrypt verifier. MailBridge locks at every startup;
+**Lock now** locks all app windows. Change or remove the password using the current one.
+Mail downloads continue while locked, and mail notifications are suppressed. This is an
+app access lock, not encryption of the mail archive or exported PSTs. Keep using Windows
+account protection and disk encryption to protect files outside the app. The verifier
+is stored in the same persistent profile as your account configuration.
+
+Run the new installer over the existing installation: **do not uninstall first**.
+The stable installer identity and installation folder allow in-place upgrades. Account
+configuration, retained mail, backup settings and the app password live outside the app
+installation directory and are preserved. Complete or cancel an active Outlook import
+or PST export before updating.
+
+From this version onward, **Archive & sync → App updates → Check for updates** checks
+this installation's private Tailscale feed. The app verifies an Ed25519-signed manifest,
+then streams and verifies the installer SHA-256 and exact size. **Restart and update**
+waits for a graceful app exit, runs the update in the existing app directory and reopens
+MailBridge. It does not use the original client's update service. If the private server
+is unavailable, the installed app is unchanged; download a verified new installer and
+run it over the current installation instead. This first update from older builds needs
+the downloaded installer because those builds do not contain the new update controls.

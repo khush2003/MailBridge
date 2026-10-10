@@ -1,0 +1,4 @@
+{
+  "feed": "http://100.113.4.27:8089/mailbridge-update.json",
+  "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAeB/6px/+un5mBmxJesPTRUcaUASoyzIQkXLxBwbiPoM=\n-----END PUBLIC KEY-----\n"
+}

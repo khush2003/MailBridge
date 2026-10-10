@@ -3,6 +3,8 @@ import { render, fireEvent, cleanup, act } from '@testing-library/react';
 import { AccountStore } from 'mailspring-exports';
 import MailBridge from '../../../src/mailbridge/controller';
 import ArchivePreferences from '../lib/preferences';
+import InitialPreferencesPage from '../../onboarding/lib/page-initial-preferences';
+import { ipcRenderer } from 'electron';
 
 describe('Outlook PST import feedback', () => {
   beforeEach(() => {
@@ -112,5 +114,11 @@ describe('Outlook PST import feedback', () => {
     expect(getByText('Backing up retained mail · 100 of 500 messages')).not.toBe(null);
     fireEvent.click(getByRole('button', { name: 'Cancel backup' }));
     expect(MailBridge.cancelPstBackup).toHaveBeenCalled();
+  });
+  it('finishes account setup directly without asking for a paid subscription', () => {
+    spyOn(AccountStore, 'accounts').andReturn([]);
+    spyOn(ipcRenderer, 'send');
+    new InitialPreferencesPage({})._onFinished();
+    expect(ipcRenderer.send).toHaveBeenCalledWith('account-setup-successful');
   });
 });

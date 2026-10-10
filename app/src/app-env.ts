@@ -62,6 +62,7 @@ export default class AppEnvConstructor {
 
     const { devMode, safeMode, resourcePath, configDirPath, windowType } = this.getLoadSettings();
     const specMode = this.inSpecMode();
+    if (!specMode) require('./mailbridge/lock-screen').initializeLockScreen();
 
     initializeLocalization({ configDirPath });
 
@@ -139,7 +140,6 @@ export default class AppEnvConstructor {
     this.onWindowPropsReceived(() => {
       process.title = `MailBridge ${this.getWindowType()}`;
     });
-
 
     this.bootComplete = true;
   }
