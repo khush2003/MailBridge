@@ -144,7 +144,11 @@ class SignatureEditor extends React.Component<SignatureEditorProps, SignatureEdi
     const resolvedData = ResolveSignatureData(data);
 
     return (
-      <div className={`signature-wrap ${empty && 'empty'}`}>
+      <fieldset
+        className={`signature-wrap ${empty && 'empty'}`}
+        disabled={empty}
+        {...(empty ? { inert: '' } : {})}
+      >
         <div className="section basic-info">
           <label htmlFor="signature-title" className="sr-only">
             {localized('Signature Name')}
@@ -225,7 +229,7 @@ class SignatureEditor extends React.Component<SignatureEditorProps, SignatureEdi
                 />
               </div>,
             ]}
-      </div>
+      </fieldset>
     );
   }
 }

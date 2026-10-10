@@ -13,7 +13,8 @@ function verifyManifest(envelope, publicKey) {
   return value;
 }
 function newerVersion(candidate, installed) {
-  const left = candidate.split('.').map(Number), right = installed.split('.').map(Number);
+  const left = candidate.split(/[+-]/, 1)[0].split('.').map(Number), right = installed.split(/[+-]/, 1)[0].split('.').map(Number);
+  if (left.length !== 3 || right.length !== 3 || [...left, ...right].some(n => !Number.isSafeInteger(n) || n < 0)) throw new Error('Unable to compare app versions. Download the latest MailBridge installer and run it over this installation.');
   for (let i = 0; i < 3; i++) { if (left[i] !== right[i]) return left[i] > right[i]; }
   return false;
 }

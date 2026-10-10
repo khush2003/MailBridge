@@ -19,14 +19,14 @@ const assert = require('node:assert/strict');
     await expect.poll(async () => { for (const candidate of application.windows()) if(await candidate.locator('body.window-type-default .mb-office-header').isVisible().catch(()=>false)){ page=candidate;return true;}return false; },{timeout:60000}).toBe(true);
     assert.equal(errors.length,0,errors.join('\n'));
     const status = await page.evaluate(()=>({ version:AppEnv.getVersion(), accounts:require('mailspring-exports').AccountStore.accounts().map(a=>({id:a.id,email:a.emailAddress})), settings:require(AppEnv.getLoadSettings().resourcePath+'/src/mailbridge/controller').default.settings() }));
-    assert.equal(status.version.split('-')[0],'0.1.4');if(process.env.GITHUB_SHA)assert.equal(status.version,`0.1.4-${process.env.GITHUB_SHA.slice(0,8)}`);assert.deepEqual(status.accounts,[{id:'c0ffee-peer',email:'test@example.test'}]);
+    assert.equal(status.version.split('-')[0],'0.2.0');if(process.env.GITHUB_SHA)assert.equal(status.version,`0.2.0-${process.env.GITHUB_SHA.slice(0,8)}`);assert.deepEqual(status.accounts,[{id:'c0ffee-peer',email:'test@example.test'}]);
     assert.equal(status.settings.backupEnabled,true);assert.equal(status.settings.backupInterval,'weekly');assert.equal(status.settings.backupFolder,'D:\\Backups');
     await page.getByText('Message 43001',{exact:true}).first().click();
     await expect(page.locator('.message-subject')).toHaveText('Message 43001');
     await expect(page.frameLocator('.message-iframe-container iframe').first().locator('body')).toContainText('body of message 43001');
     assert.ok(!/Mailspring Pro|payment|billing/i.test(await page.locator('body').innerText()));
     await page.screenshot({animations:'disabled',path:'mailbridge-artifacts/windows-upgraded-profile.png'});
-    fs.appendFileSync('mailbridge-artifacts/upgrade-verification.txt','\nThe installed 0.1.4 opened the existing locked profile, unlocked with its original password, retained the existing account and backup schedule, and displayed retained mail with its full body.\n');
+    fs.appendFileSync('mailbridge-artifacts/upgrade-verification.txt','\nThe installed 0.2.0 opened the existing locked profile, unlocked with its original password, retained the existing account and backup schedule, and displayed retained mail with its full body.\n');
   } catch(error) {
     const diagnostics=[];
     for (const [index,candidate] of application.windows().entries()) {

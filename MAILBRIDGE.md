@@ -63,7 +63,7 @@ npm run typecheck
 node --test test/mailbridge/*.test.cjs
 ```
 
-The **MailBridge Windows** workflow builds the modified native engine with MSBuild/vcpkg, runs the real native integration tests on Windows, packages the desktop client, opens the packaged app for a smoke test, and generates `MailBridge-Setup-0.1.4.exe` with Inno Setup. Review builds are unsigned. Production signing is opt-in: set repository variable `MAILBRIDGE_SIGNED_BUILDS=true` and secrets `MAILBRIDGE_PFX_BASE64` and `MAILBRIDGE_PFX_PASSWORD` for your Authenticode certificate. Signing covers executable/DLL/native-module files and the installer. Build information and SHA-256 hashes accompany the artifact. No executable packing/obfuscation or antivirus evasion is used. A signature helps establish publisher identity; it cannot guarantee every antivirus or Windows reputation result.
+The **MailBridge Windows** workflow builds the modified native engine with MSBuild/vcpkg, runs the real native integration tests on Windows, packages the desktop client, opens the packaged app for a smoke test, and generates `MailBridge-Setup-0.2.0.exe` with Inno Setup. Review builds are unsigned. Production signing is opt-in: set repository variable `MAILBRIDGE_SIGNED_BUILDS=true` and secrets `MAILBRIDGE_PFX_BASE64` and `MAILBRIDGE_PFX_PASSWORD` for your Authenticode certificate. Signing covers executable/DLL/native-module files and the installer. Build information and SHA-256 hashes accompany the artifact. No executable packing/obfuscation or antivirus evasion is used. A signature helps establish publisher identity; it cannot guarantee every antivirus or Windows reputation result.
 
 For Linux development, build libetpan with a local prefix, then MailCore and mailsync with that prefix in their include/library search paths. Copy the resulting `mailsync` to `app/mailsync`. See `mailsync/BUILDING.md`. `npm start` runs the source app; `npm run build -- --skip-installers` produces a standalone Linux directory for verification.
 
@@ -132,7 +132,7 @@ is unavailable, the installed app is unchanged; download a verified new installe
 run it over the current installation instead. This first update from older builds needs
 the downloaded installer because those builds do not contain the new update controls.
 
-### Fluent interface and quality checks (0.1.4)
+### Fluent interface and quality checks (0.2.0)
 
 The compact ribbon groups common mail commands and moves secondary commands into an
 icon menu on narrower windows. Shared icon menus support arrows, Home/End, typeahead
@@ -162,3 +162,7 @@ A real company account, real Google Drive credentials, classic Outlook COM opera
 the user's 16 GiB PST, Windows antivirus reputation and a second physical PC were not
 available for this verification. These still need a pilot on the intended PCs. The
 installer is unsigned unless a distributor configures Authenticode signing.
+
+Version comparison now handles packaged commit suffixes. This release uses 0.2.0 so
+the existing 0.1.3 updater can recognize it before evaluating the affected patch
+component. Later patch updates are recognized normally by the corrected comparator.

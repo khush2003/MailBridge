@@ -17,6 +17,13 @@ test('only a manifest signed by the trusted publisher is accepted', () => {
   assert.equal(newerVersion('0.1.3', '0.1.3'), false);
   assert.equal(newerVersion('0.1.2', '0.1.3'), false);
 });
+test('packaged commit suffixes cannot hide a newer release or offer a downgrade', () => {
+  assert.equal(newerVersion('0.2.1','0.2.0-abcdef12'),true);
+  assert.equal(newerVersion('0.2.0','0.2.0-abcdef12'),false);
+  assert.equal(newerVersion('0.1.3','0.2.0-abcdef12'),false);
+  assert.equal(newerVersion('0.2.0','0.1.3-825a413a'),true);
+  assert.throws(()=>newerVersion('0.2.0','unknown'),/latest MailBridge installer/);
+});
 test('streamed update is published only after checksum and size verification', async t => {
   const bytes = Buffer.from('fixture installer bytes');
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'mb-update-'));

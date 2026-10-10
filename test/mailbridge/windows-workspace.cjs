@@ -302,10 +302,11 @@ const { execFileSync } = require('node:child_process');
       await preferences.waitForTimeout(200);
       if(tabName.trim()==='Signatures'){
         const gallery=preferences.locator('.signature-template-picker');
-        const raw=gallery.getByRole('button',{name:'Raw HTML',exact:true});
+        const raw=gallery.locator('button[aria-label="Raw HTML"]');
+        await expect(preferences.getByLabel('Signature Name',{exact:true})).toBeDisabled();
         await expect(raw).toBeInViewport({ratio:1});
         const bounds=await gallery.boundingBox();
-        const clipped=await gallery.getByRole('button').evaluateAll((buttons,right)=>buttons.filter(b=>b.getBoundingClientRect().right>right+1).length,bounds.x+bounds.width);
+        const clipped=await gallery.locator('button').evaluateAll((buttons,right)=>buttons.filter(b=>b.getBoundingClientRect().right>right+1).length,bounds.x+bounds.width);
         assert.equal(clipped,0,'All signature layouts must fit inside their settings gallery');
       }
       await preferences.screenshot({ animations: 'disabled', path: `mailbridge-artifacts/windows-settings-${tabName.trim().replace(/[^a-zA-Z0-9]/g, '-')}.png` });

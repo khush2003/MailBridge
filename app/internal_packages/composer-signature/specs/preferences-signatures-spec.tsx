@@ -29,6 +29,28 @@ const makeComponent = (props = {}) => {
 describe('PreferencesSignatures', function preferencesSignatures() {
   this.component = null;
 
+  it('disables the complete empty editor while keeping Add signature available', () => {
+    spyOn(SignatureStore, 'getSignatures').andReturn({});
+    spyOn(SignatureStore, 'selectedSignature').andReturn(null);
+    spyOn(SignatureStore, 'getDefaults').andReturn({});
+    const component = makeComponent() as unknown as PreferencesSignatures;
+    const editor = ReactTestUtils.findRenderedDOMComponentWithClass(
+      component,
+      'signature-wrap'
+    ) as HTMLFieldSetElement;
+    expect(editor.disabled).toBe(true);
+    expect(editor.hasAttribute('inert')).toBe(true);
+    const inputs = editor.querySelectorAll('input, textarea, select, button');
+    expect(inputs.length).toBeGreaterThan(0);
+    Array.from(inputs).forEach((input) => expect(input.matches(':disabled')).toBe(true));
+    const add = ReactTestUtils.scryRenderedDOMComponentsWithClass(
+      component,
+      'btn-editable-list'
+    )[0] as HTMLElement;
+    expect(add.closest('fieldset')).toBe(null);
+    expect(add.matches(':disabled')).toBe(false);
+  });
+
   describe('when there are signatures', () => {
     beforeEach(() => {
       spyOn(SignatureStore, 'getSignatures').andReturn(SIGNATURES);
