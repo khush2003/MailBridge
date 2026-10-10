@@ -1,3 +1,5 @@
+import path from 'path';
+
 import {
   applyPersistentSoftwareRendering,
   attemptEarlyRendererCrashRecovery,
@@ -108,7 +110,7 @@ describe('hardware acceleration recovery', () => {
       const app = buildApp();
       const fileSystem = buildFileSystem([
         softwareRenderingMarkerPath(CONFIG_DIR),
-        `${CONFIG_DIR}/software-rendering-cache-cleared`,
+        path.join(CONFIG_DIR, 'software-rendering-cache-cleared'),
       ]);
 
       expect(applyPersistentSoftwareRendering(app, CONFIG_DIR, 'win32', fileSystem)).toBe(true);

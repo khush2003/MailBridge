@@ -1,0 +1,4 @@
+# HTML parsing normalizes CRLF to LF. Keep snapshot fixtures byte-identical
+# across Git checkouts so Windows compares the same expected HTML as Linux.
+app/spec/fixtures/emails/*.html text eol=lf
+app/spec/services/autolinker-fixtures/*.html text eol=lf

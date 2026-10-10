@@ -16,6 +16,7 @@ Correctness fixes:
 - Server-only status polling reads aggregate native statistics instead of parsing and serializing every archived message. This keeps periodic status work small as the archive grows.
 - Compose and other split controls use the shared flat button styling. Menu-only dropdowns support Enter, Space, and Escape and report their expanded state. New accounts start without a promotional signature.
 - Notification actions are keyboard-accessible, Dismiss controls do not duplicate across renders, and nested alert changes update their priority. Retry timers are cleared on unmount.
+- Windows desktop assertions now emit a durable JUnit report and a captured console summary. HTML snapshot fixtures use consistent LF endings across checkouts; the GPU-recovery fixture constructs its path with the host path library.
 - The test harness tolerates the engine rotating its log between filesystem checks; a regression covers the transient missing file. The 5,000-message MODSEQ fixture now places messages outside the existing 90-day body-cache window, as its flag-sync test requires.
 - Offline download notices distinguish connection problems and unknown completion from a known number of unfinished downloads.
 
