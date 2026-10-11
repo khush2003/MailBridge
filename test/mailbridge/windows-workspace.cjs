@@ -323,6 +323,9 @@ const { execFileSync } = require('node:child_process');
     await preferences.getByRole('tab', { name: 'Appearance', exact: true }).click();
     await expect(preferences.getByRole('tab', { name: 'Appearance', exact: true })).toHaveAttribute('aria-selected', 'true');
     await preferences.evaluate(() => require('mailspring-exports').Actions.popSheet());
+    await page.bringToFront();
+    await page.evaluate(() => require('@electron/remote').getCurrentWindow().focus());
+    await expect.poll(() => page.evaluate(() => document.hasFocus())).toBe(true);
     await search.focus();
     await page.evaluate(async () => {
       const { FeatureUsageStore } = require('mailspring-exports');
@@ -333,6 +336,7 @@ const { execFileSync } = require('node:child_process');
     await expect(page.getByRole('dialog')).toBeVisible();
     const closeDialog = page.getByRole('button', { name: 'Close dialog', exact: true });
     await closeDialog.focus();
+    await expect(closeDialog).toBeFocused();
     await page.keyboard.press('Shift+Tab');
     await expect(page.getByText('Create a Theme', { exact: true })).toBeFocused();
     await page.keyboard.press('Tab');
@@ -389,6 +393,14 @@ const { execFileSync } = require('node:child_process');
     await page.evaluate(() => require('electron').ipcRenderer.invoke('mailbridge-lock-action', 'configure', 'cross-window-test', null));
     assert.equal(errors.length, 0, errors.join('\n'));
     console.log('Packaged workspace, full bodies, search, folder padding, readable settings tabs, all settings screens, composition, reduced motion, and optional Drive settings passed.');
+  } catch (error) {
+    const windows=[];
+    for (const [index,candidate] of application.windows().entries()) {
+      windows.push(await candidate.evaluate(() => ({url:location.href,windowType:document.body.className,hasFocus:document.hasFocus(),activeElement:document.activeElement?.outerHTML,body:document.body.innerText})).catch(() => ({closed:true})));
+      await candidate.screenshot({animations:'disabled',path:`mailbridge-artifacts/windows-workspace-failure-${index}.png`}).catch(() => {});
+    }
+    fs.writeFileSync('mailbridge-artifacts/workspace-failure.json',JSON.stringify({error:error.stack,rendererErrors:errors,windows},null,2));
+    throw error;
   } finally { await application.close(); }
   assert.equal(errors.length, 0, errors.join('\n'));
 })().catch(error => { console.error(error); process.exit(1); });
