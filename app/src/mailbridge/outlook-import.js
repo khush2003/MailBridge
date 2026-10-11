@@ -97,6 +97,8 @@ async function importOutlookPst({
         script,
         '-PstPath',
         snapshot,
+        '-SourcePstPath',
+        source,
         '-OutputDirectory',
         temporary,
         '-CancelPath',

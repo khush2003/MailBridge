@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$PstPath, [Parameter(Mandatory=$true)][string]$OutputDirectory, [string]$CancelPath='')
+param([Parameter(Mandatory=$true)][string]$PstPath, [Parameter(Mandatory=$true)][string]$OutputDirectory, [string]$CancelPath='', [string]$SourcePstPath='')
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 function ReleaseCom($Value) { if ($null -ne $Value -and [Runtime.InteropServices.Marshal]::IsComObject($Value)) { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($Value) } }
@@ -8,6 +8,13 @@ function InitializeOutlookSession($Namespace) {
   # accessing stores. Do not Logon to a second profile or handle PST passwords here.
   $inbox=$null
   try { $inbox=$Namespace.GetDefaultFolder(6) } finally { ReleaseCom $inbox }
+}
+function EnsureOutlookWindow($Application, $Namespace) {
+  $explorer=$null; $folder=$null
+  try {
+    $explorer=$Application.ActiveExplorer()
+    if (!$explorer) { $folder=$Namespace.GetDefaultFolder(6); $explorer=$folder.GetExplorer(); $explorer.Display() }
+  } finally { ReleaseCom $explorer; ReleaseCom $folder }
 }
 function FindPstStore($Namespace, [string]$Path) {
   for ($i=1; $i -le $Namespace.Stores.Count; $i++) {
@@ -146,16 +153,25 @@ try {
   InitializeOutlookSession $namespace
   CheckCancellation
   $fullPath = [IO.Path]::GetFullPath($PstPath)
-  $store=FindPstStore $namespace $fullPath
+  # An already-open source was explicitly unlocked by the user. Read its existing
+  # store without adding/removing it or saving changes to its messages. This avoids
+  # asking COM to reopen a password-protected copy, which can stall without a prompt.
+  $store=$null
+  if ($SourcePstPath) { $store=FindPstStore $namespace ([IO.Path]::GetFullPath($SourcePstPath)) }
+  if ($store) {
+    @{progress='Reading the PST already open in Outlook. Its data file will stay attached.'} | ConvertTo-Json -Compress
+    $stage='Reading the PST already open in Outlook'
+  } else { $store=FindPstStore $namespace $fullPath }
   if (!$store) {
     $stage='Opening the temporary PST copy'
     @{progress='Opening the temporary PST copy in Outlook. If it has a password, Outlook can ask for it again even after you unlock your profile.'} | ConvertTo-Json -Compress
+    EnsureOutlookWindow $outlook $namespace
     $added=$true
-    $namespace.AddStoreEx($fullPath, 3)
+    $namespace.AddStoreEx($fullPath, 2) # olStoreUnicode (Outlook 2003 and later)
     $store=FindPstStore $namespace $fullPath
   }
   if (!$store) { throw 'Outlook could not open this PST file' }
-  $stage='Reading the temporary PST copy'
+  if ($added) { $stage='Reading the temporary PST copy' }
   $root=$store.GetRootFolder()
   try { $script:InboxId=$store.GetDefaultFolder(6).EntryID } catch { $script:InboxId='' }
   try { $script:SentId=$store.GetDefaultFolder(5).EntryID } catch { $script:SentId='' }

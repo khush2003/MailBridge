@@ -24,6 +24,7 @@ async function fixture(t, program, overrides = {}) {
     spawnExporter: (command, args) => {
       assert.equal(command, 'powershell.exe');
       assert.ok(args.includes('-STA'));
+      assert.equal(args[args.indexOf('-SourcePstPath') + 1], source);
       const directory = args[args.indexOf('-OutputDirectory') + 1];
       const snapshot = args[args.indexOf('-PstPath') + 1];
       assert.deepEqual(fs.readFileSync(snapshot), original);
