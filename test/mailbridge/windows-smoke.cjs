@@ -4,6 +4,26 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
+let application;
+let phase = 'Starting smoke test';
+function markPhase(value) {
+  phase = value;
+  console.log(`[Windows smoke] ${phase}`);
+}
+const watchdog = setTimeout(() => {
+  const message = `Windows smoke exceeded 180 seconds during: ${phase}`;
+  fs.mkdirSync('mailbridge-artifacts', { recursive: true });
+  fs.writeFileSync('mailbridge-artifacts/windows-smoke-timeout.json', JSON.stringify({ phase, message, pid: application?.process()?.pid }, null, 2));
+  console.error(message);
+  const pid = application?.process()?.pid;
+  if (pid) {
+    try {
+      if (process.platform === 'win32') execFileSync('taskkill.exe', ['/PID', String(pid), '/T', '/F'], { timeout: 10000 });
+      else application.process().kill('SIGKILL');
+    } catch {}
+  }
+  process.exit(1);
+}, 180000);
 (async () => {
   const root = path.resolve('app/dist/MailBridge-win32-x64');
   if (process.platform === 'win32') {
@@ -11,11 +31,13 @@ const { execFileSync } = require('node:child_process');
     const helper = path.join(applicationDirectory, 'resources', 'app.asar.unpacked', 'mailbridge-tools', 'pst-backup', 'MailBridge.PstBackup.exe');
     assert.ok(fs.existsSync(path.join(applicationDirectory, 'resources', 'app.asar.unpacked', 'mailbridge-tools', 'import-outlook.ps1')), 'Outlook import script must be available on disk');
     assert.ok(fs.existsSync(helper), 'PST backup helper must ship with the application');
+    markPhase('PST helper self-test');
     const result = execFileSync(helper, ['--self-test'], { encoding: 'utf8', timeout: 60000 });
     assert.equal(JSON.parse(result.trim()).selfTest, 'passed', 'Installed PST conversion dependencies must work');
   }
   const config = fs.mkdtempSync(path.join(os.tmpdir(), 'mailbridge-smoke-'));
-  const application = await electron.launch({ executablePath: process.env.MAILBRIDGE_DESKTOP_BINARY || path.join(root, 'MailBridge.exe'),
+  markPhase('Launching installed application');
+  application = await electron.launch({ executablePath: process.env.MAILBRIDGE_DESKTOP_BINARY || path.join(root, 'MailBridge.exe'),
     args: ['--config-dir-path', config], timeout: 60000 });
   const diagnostics = [];
   const attach = page => {
@@ -27,6 +49,7 @@ const { execFileSync } = require('node:child_process');
   for (const page of application.windows()) attach(page);
   application.process().stderr.on('data', data => diagnostics.push(`STDERR: ${data.toString()}`));
   try {
+    markPhase('Windows credential protection');
     const protection = await application.evaluate(async ({ app, safeStorage }) => {
       await app.whenReady();
       if (!safeStorage.isEncryptionAvailable()) return { available: false, name: app.getName() };
@@ -41,6 +64,7 @@ const { execFileSync } = require('node:child_process');
       assert.equal(protection.roundtrip, 'mailbridge-windows-test');
       assert.equal(protection.asyncAvailable, true);
       assert.equal(protection.asyncRoundtrip, 'mailbridge-windows-test');
+      markPhase('Startup registration');
       const startup = await application.evaluate(({ app }) => {
         app.setLoginItemSettings({ openAtLogin: true, path: process.execPath });
         return app.getLoginItemSettings({ path: process.execPath }).openAtLogin;
@@ -49,6 +73,7 @@ const { execFileSync } = require('node:child_process');
       await application.evaluate(({ app }) => app.setLoginItemSettings({ openAtLogin: false, path: process.execPath }));
     }
     assert.equal(protection.name, 'MailBridge');
+    markPhase('Waiting for account setup');
     let window;
     await expect.poll(async () => {
       for (const candidate of application.windows()) {
@@ -61,6 +86,7 @@ const { execFileSync } = require('node:child_process');
     }, { timeout: 60000, message: 'Account setup window must open' }).toBe(true);
     await window.waitForTimeout(300);
     await window.screenshot({ path: 'mailbridge-artifacts/windows-onboarding.png' });
+    markPhase('Opening IMAP setup');
     await window.getByRole('button', { name: 'IMAP / SMTP', exact: true }).focus();
     await window.keyboard.press('Enter');
     await expect(window.getByText('Add your IMAP account', { exact: true })).toBeVisible();
@@ -73,7 +99,10 @@ const { execFileSync } = require('node:child_process');
     fs.writeFileSync('app/dist/mailbridge-smoke.log', `${error.stack}\n${diagnostics.join("\n")}\n${JSON.stringify(windows, null, 2)}\n`);
     throw error;
   } finally {
+    markPhase('Removing test startup registration');
     if (process.platform === 'win32') await application.evaluate(({ app }) => app.setLoginItemSettings({ openAtLogin: false, path: process.execPath })).catch(() => {});
+    markPhase('Closing installed application');
     await application.close();
+    markPhase('Finished');
   }
-})().catch(error => { console.error(error); process.exit(1); });
+})().then(() => clearTimeout(watchdog)).catch(error => { clearTimeout(watchdog); console.error(error); process.exit(1); });
