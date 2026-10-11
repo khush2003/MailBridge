@@ -44,6 +44,7 @@ test('PST import reports copying and Outlook stages; counts messages only after 
     fs.writeFileSync(path.join(dir,'message.eml'),'complete message');
     console.log(JSON.stringify({file:'message.eml',folder:'Sent',role:'sent'}));
     console.log(JSON.stringify({warning:'Cannot export item'}));
+    console.log(JSON.stringify({snapshotDetached:true}));
   `,
     {
       importRecord: async (record) => {
@@ -66,6 +67,7 @@ test('exporter failures retain recovery EMLs, remove the snapshot, and leave sou
     `
     const fs=require('fs'),path=require('path');
     fs.writeFileSync(path.join(process.argv[1],'recovery.eml'),'recovery');
+    console.log(JSON.stringify({snapshotDetached:true}));
     console.error('Classic Outlook could not open this PST'); process.exit(1);
   `
   );
@@ -85,27 +87,46 @@ test('cancel during copy preserves original and never starts Outlook', async (t)
   assert.deepEqual(fs.readdirSync(path.join(f.root, 'imports')), []);
 });
 
-test('cancel stops a stalled exporter and releases its disposable snapshot', async (t) => {
+test('cancel stops a stalled exporter but retains the snapshot if Outlook detachment is unconfirmed', async (t) => {
   const f = await fixture(t, 'setInterval(()=>{},1000);');
   f.options.onProgress = (p) => {
     if (p.message.startsWith('Starting')) setTimeout(() => f.abort.abort(), 100);
   };
-  await assert.rejects(importOutlookPst(f.options), /Import canceled/);
+  await assert.rejects(importOutlookPst(f.options), /Import canceled.*temporary PST copy is kept/);
   assert.deepEqual(fs.readFileSync(f.source), f.original);
-  assert.deepEqual(fs.readdirSync(path.join(f.root, 'imports')), []);
+  assert.equal(fs.readdirSync(path.join(f.root, 'imports')).filter(name=>name.endsWith('.pst')).length, 1);
 });
 
 test('a silent Outlook exporter fails with an actionable timeout rather than disabling import forever', async (t) => {
   const f = await fixture(t, 'setInterval(()=>{},1000);', { idleTimeoutMs: 1000 });
   await assert.rejects(importOutlookPst(f.options), /Outlook has not responded/);
-  assert.deepEqual(fs.readdirSync(path.join(f.root, 'imports')), []);
+  assert.equal(fs.readdirSync(path.join(f.root, 'imports')).filter(name=>name.endsWith('.pst')).length, 1);
 });
 
 test('cancellation allows a responsive Outlook worker to detach before removing its snapshot', async t => {
-  const f = await fixture(t, `const fs=require('fs'),path=require('path');const timer=setInterval(()=>{if(fs.existsSync(process.argv[2])){fs.writeFileSync(path.join(process.argv[1],'..','detached.marker'),'detached');clearInterval(timer);process.exit(1);}},20);`);
+  const f = await fixture(t, `const fs=require('fs'),path=require('path');const timer=setInterval(()=>{if(fs.existsSync(process.argv[2])){fs.writeFileSync(path.join(process.argv[1],'..','detached.marker'),'detached');clearInterval(timer);console.log(JSON.stringify({snapshotDetached:true}));process.exitCode=1;}},20);`);
   f.options.onProgress = p => { if(p.message.startsWith('Starting'))setTimeout(()=>f.abort.abort(),100); };
   await assert.rejects(importOutlookPst(f.options), /Import canceled/);
   assert.equal(fs.readFileSync(path.join(f.root,'detached.marker'),'utf8'),'detached');
   assert.deepEqual(fs.readFileSync(f.source),f.original);
   assert.deepEqual(fs.readdirSync(path.join(f.root,'imports')),[]);
+});
+
+test('failed protected-PST attachment retains its copy when the worker cannot detach it', async t => {
+  const f=await fixture(t, `console.log(JSON.stringify({retainSnapshot:true,progress:'Outlook could not detach the temporary PST.'}));console.error('Opening the temporary PST copy failed: The Outlook data file failed to load for this session');process.exitCode=1;`);
+  await assert.rejects(importOutlookPst(f.options), /failed to load.*temporary PST copy is kept/s);
+  const files=fs.readdirSync(path.join(f.root,'imports'));
+  assert.equal(files.length,1);
+  assert.match(files[0],/\.pst$/);
+  assert.deepEqual(fs.readFileSync(path.join(f.root,'imports',files[0])),f.original);
+  assert.deepEqual(fs.readFileSync(f.source),f.original);
+});
+
+test('successful message import still reports a retained copy if Outlook cleanup fails', async t => {
+  const f=await fixture(t, `const fs=require('fs'),path=require('path');fs.writeFileSync(path.join(process.argv[1],'message.eml'),'complete');console.log(JSON.stringify({file:'message.eml',folder:'Sent',role:'sent'}));console.log(JSON.stringify({retainSnapshot:true,progress:'Outlook could not detach the temporary PST.'}));`);
+  const result=await importOutlookPst(f.options);
+  assert.equal(result.count,1);
+  assert.equal(result.warnings,0);
+  assert.match(result.retainedSnapshot,/\.pst$/);
+  assert.deepEqual(fs.readFileSync(result.retainedSnapshot),f.original);
 });

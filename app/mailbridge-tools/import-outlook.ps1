@@ -3,6 +3,39 @@ $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 function ReleaseCom($Value) { if ($null -ne $Value -and [Runtime.InteropServices.Marshal]::IsComObject($Value)) { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($Value) } }
 function CheckCancellation { if ($CancelPath -and (Test-Path -LiteralPath $CancelPath)) { throw 'Import canceled. Already imported messages are kept.' } }
+function InitializeOutlookSession($Namespace) {
+  # Microsoft recommends referencing a default folder to initialize MAPI before
+  # accessing stores. Do not Logon to a second profile or handle PST passwords here.
+  $inbox=$null
+  try { $inbox=$Namespace.GetDefaultFolder(6) } finally { ReleaseCom $inbox }
+}
+function FindPstStore($Namespace, [string]$Path) {
+  for ($i=1; $i -le $Namespace.Stores.Count; $i++) {
+    $candidate=$null
+    try {
+      $candidate=$Namespace.Stores.Item($i)
+      if ($candidate.FilePath -eq $Path) { $match=$candidate; $candidate=$null; return $match }
+    } catch {
+      # A different locked, disconnected or stale store must not abort this import.
+    } finally { ReleaseCom $candidate }
+  }
+  return $null
+}
+function DetachImportedPst($Namespace, $Root, [string]$Path) {
+  $cleanupRoot=$null
+  $cleanupStore=$null
+  try {
+    if ($Root) { $Namespace.RemoveStore($Root); @{snapshotDetached=$true} | ConvertTo-Json -Compress; return }
+    $cleanupStore=FindPstStore $Namespace $Path
+    if ($cleanupStore) { $cleanupRoot=$cleanupStore.GetRootFolder(); $Namespace.RemoveStore($cleanupRoot); @{snapshotDetached=$true} | ConvertTo-Json -Compress; return }
+    # AddStoreEx can fail after updating the profile. Retain the copy if detaching
+    # cannot be confirmed; deleting it can leave a broken Outlook profile entry.
+    throw 'The temporary store could not be inspected.'
+  } catch {
+    @{retainSnapshot=$true; progress=('Outlook may still have the temporary PST attached. The copy is kept at: ' + $Path)} | ConvertTo-Json -Compress
+    [Console]::Error.WriteLine('The temporary PST copy was kept at ' + $Path + '. In Outlook, close that data file before deleting the copy. Your original PST is unchanged.')
+  } finally { ReleaseCom $cleanupRoot; ReleaseCom $cleanupStore }
+}
 function Clean([string]$Value) { return ($Value -replace '[\r\n]', ' ').Trim() }
 function Encoded([string]$Value) { return '=?UTF-8?B?' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((Clean $Value))) + '?=' }
 function Property($Item, [string]$Tag) { try { return $Item.PropertyAccessor.GetProperty('http://schemas.microsoft.com/mapi/proptag/' + $Tag) } catch { return $null } }
@@ -101,30 +134,42 @@ function Walk($Folder, [string]$Path) {
     try { Walk $child ($Path + '/' + $child.Name) } finally { ReleaseCom $child }
   }
 }
-$added=$false; $root=$null
+$added=$false; $root=$null; $stage='Starting classic Outlook'; $fullPath=''
 try {
   if (!(Test-Path -LiteralPath $PstPath -PathType Leaf)) { throw 'PST file does not exist' }
   New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
   @{progress='Connecting to classic Outlook. Complete any Outlook profile or password prompts.'} | ConvertTo-Json -Compress
   $outlook = New-Object -ComObject Outlook.Application
+  $stage='Opening your Outlook profile'
   @{progress='Opening your Outlook profile.'} | ConvertTo-Json -Compress
   $namespace = $outlook.GetNamespace('MAPI')
+  InitializeOutlookSession $namespace
+  CheckCancellation
   $fullPath = [IO.Path]::GetFullPath($PstPath)
-  $store=$null
-  for ($i=1; $i -le $namespace.Stores.Count; $i++) { $candidate=$namespace.Stores.Item($i); if ($candidate.FilePath -eq $fullPath) { $store=$candidate; break } }
+  $store=FindPstStore $namespace $fullPath
   if (!$store) {
-    @{progress='Opening the temporary PST copy in Outlook. Large PSTs can take several minutes.'} | ConvertTo-Json -Compress
-    $namespace.AddStoreEx($fullPath, 3); $added=$true
-    for ($i=1; $i -le $namespace.Stores.Count; $i++) { $candidate=$namespace.Stores.Item($i); if ($candidate.FilePath -eq $fullPath) { $store=$candidate; break } }
+    $stage='Opening the temporary PST copy'
+    @{progress='Opening the temporary PST copy in Outlook. If it has a password, Outlook can ask for it again even after you unlock your profile.'} | ConvertTo-Json -Compress
+    $added=$true
+    $namespace.AddStoreEx($fullPath, 3)
+    $store=FindPstStore $namespace $fullPath
   }
   if (!$store) { throw 'Outlook could not open this PST file' }
+  $stage='Reading the temporary PST copy'
   $root=$store.GetRootFolder()
   try { $script:InboxId=$store.GetDefaultFolder(6).EntryID } catch { $script:InboxId='' }
   try { $script:SentId=$store.GetDefaultFolder(5).EntryID } catch { $script:SentId='' }
   try { $script:TrashId=$store.GetDefaultFolder(3).EntryID } catch { $script:TrashId='' }
   for ($i=1; $i -le $root.Folders.Count; $i++) { CheckCancellation; $folder=$root.Folders.Item($i); try { Walk $folder $folder.Name } finally { ReleaseCom $folder } }
-} catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }
+} catch {
+  $failure=$_.Exception.GetBaseException()
+  $detail=$failure.Message
+  $code=$failure.HResult.ToString('X8')
+  [Console]::Error.WriteLine($stage + ' failed (0x' + $code + '): ' + $detail + ' Open classic Outlook yourself, unlock its profile and confirm the original PST opens normally, then retry with Outlook left open. The temporary copy retains the PST password; a separate Outlook prompt may appear for it. If it still fails, export a separate PST from Outlook without a password and import that closed export. Keep your original PST.')
+  exit 1
+}
 finally {
-  if ($added -and $root) { try { $namespace.RemoveStore($root) } catch { [Console]::Error.WriteLine('Close the temporary MailBridge PST in classic Outlook if it remains open: ' + $PstPath) } }
+  if ($added) { DetachImportedPst $namespace $root $fullPath }
+  else { @{snapshotDetached=$true} | ConvertTo-Json -Compress }
   ReleaseCom $root; ReleaseCom $store; ReleaseCom $namespace; ReleaseCom $outlook
 }

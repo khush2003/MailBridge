@@ -443,7 +443,9 @@ class MailBridgeController extends EventEmitter {
       this.publish({
         importProgress: {
           ...result,
-          message: `Imported ${result.count} messages. ${result.warnings} messages could not be exported; keep your original PST.`,
+          message: `Imported ${result.count} messages. ${result.warnings} messages could not be exported; keep your original PST.` +
+            (result.retainedSnapshot ? ` The temporary PST copy is kept at ${result.retainedSnapshot}. Close that data file in Outlook before deleting the copy.` : ''),
+          error: Boolean(result.retainedSnapshot),
         },
       });
       this.requestSync();

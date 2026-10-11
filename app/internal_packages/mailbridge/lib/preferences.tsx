@@ -717,6 +717,11 @@ export default class ArchivePreferences extends React.Component<Record<string, n
               then imports mail, attachments, read status, and flags into the selected account.
               Classic Outlook must be installed. Drafts, calendars, and contacts are excluded.
             </p>
+            <p>
+              Use a closed PST backup or a separate Outlook export. Password-protected files keep
+              their password when copied; Outlook may prompt again for the temporary copy after
+              you unlock its profile.
+            </p>
             <label>
               Destination account
               <select

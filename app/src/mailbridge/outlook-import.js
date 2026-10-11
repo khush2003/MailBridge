@@ -26,6 +26,7 @@ async function importOutlookPst({
   let timeoutError;
   let count = 0;
   let warnings = 0;
+  let retainSnapshot = false;
   const abort = () => {
     if (!child) return;
     try { fs.writeFileSync(cancelPath, 'cancel'); } catch {}
@@ -33,7 +34,8 @@ async function importOutlookPst({
   };
   const checkCanceled = () => {
     if (signal.aborted) {
-      const error = new Error('Import canceled. Any messages already imported are kept.');
+      const error = new Error('Import canceled. Any messages already imported are kept.' +
+        (retainSnapshot ? ` The temporary PST copy is kept at ${snapshot}. Close that data file in Outlook before deleting the copy.` : ''));
       error.name = 'AbortError';
       throw error;
     }
@@ -102,6 +104,8 @@ async function importOutlookPst({
       ],
       { windowsHide: true }
     );
+    // A killed password prompt cannot confirm that Outlook detached the copy.
+    retainSnapshot = true;
     signal.addEventListener('abort', abort, { once: true });
     if (signal.aborted) abort();
     let failure = '';
@@ -109,7 +113,7 @@ async function importOutlookPst({
       failure = (failure + bytes.toString('utf8')).slice(-2000);
     });
     const finished = new Promise((resolve, reject) => {
-      child.once('error', reject);
+      child.once('error', error => { if (!child.pid) retainSnapshot = false; reject(error); });
       child.once('close', resolve);
     });
     exporterFinished = finished;
@@ -129,10 +133,12 @@ async function importOutlookPst({
       input: child.stdout,
       crlfDelay: Infinity,
     })) {
-      checkCanceled();
       if (!line.trim()) continue;
       resetIdle();
       const record = JSON.parse(line);
+      if (record.retainSnapshot === true) retainSnapshot = true;
+      if (record.snapshotDetached === true) { retainSnapshot = false; continue; }
+      if (signal.aborted) continue;
       if (record.progress) {
         onProgress({ count, warnings, message: record.progress });
         continue;
@@ -165,15 +171,21 @@ async function importOutlookPst({
     }
     const code = await finished;
     checkCanceled();
-    if (timeoutError) throw timeoutError;
+    if (timeoutError) {
+      if (retainSnapshot) timeoutError.message += ` The temporary PST copy is kept at ${snapshot}. Close that data file in Outlook before deleting the copy.`;
+      throw timeoutError;
+    }
     if (code !== 0)
       throw new Error(
         failure ||
           'Outlook export failed. Check that classic Outlook is installed and its profile opens normally.'
       );
-    return { count, warnings };
+    return { count, warnings, ...(retainSnapshot ? { retainedSnapshot: snapshot } : {}) };
   } catch (error) {
     if (signal.aborted) checkCanceled();
+    if (retainSnapshot && !error.message.includes(snapshot)) {
+      error.message += ` The temporary PST copy is kept at ${snapshot}. Close that data file in Outlook before deleting the copy. Your original PST is unchanged.`;
+    }
     throw error;
   } finally {
     clearTimeout(idleTimer);
@@ -185,7 +197,7 @@ async function importOutlookPst({
     if (child && child.exitCode === null) child.kill();
     await fs.promises.unlink(cancelPath).catch(() => {});
     // Preserve failed EML exports; the disposable PST is never the user's source.
-    await fs.promises.unlink(snapshot).catch(() => {});
+    if (!retainSnapshot) await fs.promises.unlink(snapshot).catch(() => {});
   }
 }
 
