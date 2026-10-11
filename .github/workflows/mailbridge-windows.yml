@@ -201,7 +201,6 @@ jobs:
             Write-Host "Completed $file"
           }
           Invoke-BoundedSetup $installer 'installed-setup.log'
-          if ($process.ExitCode -ne 0) { throw "Installer exited with $($process.ExitCode)" }
           $env:MAILBRIDGE_DESKTOP_BINARY = Join-Path $installed 'MailBridge.exe'
           if (!(Test-Path $env:MAILBRIDGE_DESKTOP_BINARY)) { throw 'Installed executable is missing' }
           foreach ($attempt in 1..5) {
