@@ -28,7 +28,7 @@ async function importOutlookPst({
   let warnings = 0;
   let retainSnapshot = false;
   const abort = () => {
-    if (!child) return;
+    if (!child || child.exitCode !== null) return;
     try { fs.writeFileSync(cancelPath, 'cancel'); } catch {}
     cancelTimer = setTimeout(() => child.kill(), 3000);
   };
@@ -40,9 +40,7 @@ async function importOutlookPst({
       throw error;
     }
   };
-  try {
-    checkCanceled();
-    await fs.promises.mkdir(temporary, { recursive: true });
+  const copyClosedPst = async () => {
     const { size } = await fs.promises.stat(source);
     if (typeof fs.promises.statfs === 'function') {
       const disk = await fs.promises.statfs(temporary).catch(() => null);
@@ -79,12 +77,17 @@ async function importOutlookPst({
     );
     reportCopy();
     checkCanceled();
+  };
+  const exportFromOutlook = async (pstPath, existingStoreOnly) => {
+    checkCanceled();
     onProgress({
       count,
       warnings,
-      message:
-        'Starting classic Outlook. Complete any Outlook profile or password prompts that appear.',
+      message: existingStoreOnly
+        ? 'Connecting to Outlook to read an already-open PST. Complete any profile or password prompts.'
+        : 'Starting classic Outlook. Complete any Outlook profile or password prompts that appear.',
     });
+    checkCanceled();
     child = spawnExporter(
       'powershell.exe',
       [
@@ -96,21 +99,23 @@ async function importOutlookPst({
         '-File',
         script,
         '-PstPath',
-        snapshot,
+        pstPath,
         '-SourcePstPath',
         source,
         '-OutputDirectory',
         temporary,
         '-CancelPath',
         cancelPath,
+        ...(existingStoreOnly ? ['-ExistingStoreOnly'] : []),
       ],
       { windowsHide: true }
     );
     // A killed password prompt cannot confirm that Outlook detached the copy.
-    retainSnapshot = true;
+    retainSnapshot = !existingStoreOnly;
     signal.addEventListener('abort', abort, { once: true });
     if (signal.aborted) abort();
     let failure = '';
+    let needsSnapshot = false;
     child.stderr.on('data', (bytes) => {
       failure = (failure + bytes.toString('utf8')).slice(-2000);
     });
@@ -138,9 +143,11 @@ async function importOutlookPst({
       if (!line.trim()) continue;
       resetIdle();
       const record = JSON.parse(line);
-      if (record.retainSnapshot === true) retainSnapshot = true;
+      if (record.needsSnapshot === true) { needsSnapshot = true; continue; }
+      if (record.retainSnapshot === true && !existingStoreOnly) retainSnapshot = true;
       if (record.snapshotDetached === true) { retainSnapshot = false; continue; }
       if (signal.aborted) continue;
+      if (needsSnapshot) throw new Error('Outlook returned messages after requesting a snapshot.');
       if (record.progress) {
         onProgress({ count, warnings, message: record.progress });
         continue;
@@ -172,6 +179,7 @@ async function importOutlookPst({
       resetIdle();
     }
     const code = await finished;
+    clearTimeout(idleTimer);
     checkCanceled();
     if (timeoutError) {
       if (retainSnapshot) timeoutError.message += ` The temporary PST copy is kept at ${snapshot}. Close that data file in Outlook before deleting the copy.`;
@@ -182,9 +190,27 @@ async function importOutlookPst({
         failure ||
           'Outlook export failed. Check that classic Outlook is installed and its profile opens normally.'
       );
+    if (needsSnapshot && (!existingStoreOnly || count)) throw new Error('Invalid Outlook snapshot request.');
+    return { needsSnapshot };
+  };
+  try {
+    checkCanceled();
+    await fs.promises.mkdir(temporary, { recursive: true });
+    await fs.promises.stat(source);
+    onProgress({ count, warnings, message: 'Checking whether your selected PST is already open in Outlook…' });
+    checkCanceled();
+    const opened = await exportFromOutlook(source, true);
+    if (opened.needsSnapshot) {
+      checkCanceled();
+      await copyClosedPst();
+      await exportFromOutlook(snapshot, false);
+    }
     return { count, warnings, ...(retainSnapshot ? { retainedSnapshot: snapshot } : {}) };
   } catch (error) {
     if (signal.aborted) checkCanceled();
+    if (['EBUSY', 'EACCES', 'EPERM'].includes(error.code)) {
+      error.message += ' The PST could not be copied. Open that exact file in classic Outlook, unlock it, and retry so MailBridge can read its open store. Otherwise, choose a closed Outlook export and check file permissions.';
+    }
     if (retainSnapshot && !error.message.includes(snapshot)) {
       error.message += ` The temporary PST copy is kept at ${snapshot}. Close that data file in Outlook before deleting the copy. Your original PST is unchanged.`;
     }

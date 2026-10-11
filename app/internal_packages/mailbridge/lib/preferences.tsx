@@ -713,7 +713,8 @@ export default class ArchivePreferences extends React.Component<Record<string, n
           <section id="mb-import">
             <h2>Import existing Outlook mail</h2>
             <p>
-              Choose a PST from Outlook 2010 or classic Outlook. MailBridge makes a safety copy first,
+              Choose a PST from Outlook 2010 or classic Outlook. MailBridge reads an already-open PST
+              directly, or copies a closed file first,
               then imports mail, attachments, read status, and flags into the selected account.
               Classic Outlook must be installed. Drafts, calendars, and contacts are excluded.
             </p>

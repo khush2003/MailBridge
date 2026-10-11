@@ -51,8 +51,8 @@ try {
 $fixture=Join-Path ([IO.Path]::GetTempPath()) ('mailbridge-open-pst-'+[Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $fixture | Out-Null
 try {
- $PstPath=Join-Path $fixture 'snapshot.pst'; [IO.File]::WriteAllBytes($PstPath,[byte[]]@())
  $SourcePstPath=Join-Path $fixture 'original.pst'
+ $PstPath=$SourcePstPath; [IO.File]::WriteAllBytes($SourcePstPath,[byte[]]@());$ExistingStoreOnly=$true
  $OutputDirectory=Join-Path $fixture 'eml';$CancelPath=''
  $testRoot=[pscustomobject]@{Folders=[pscustomobject]@{Count=0}}
  $testStore=[pscustomobject]@{FilePath=$SourcePstPath;Root=$testRoot}
@@ -71,6 +71,7 @@ try {
  $entry=$ast.EndBlock.Statements | Where-Object {$_ -is [Management.Automation.Language.TryStatementAst]} | Select-Object -Last 1
  $records=@(Invoke-Expression $entry.Extent.Text | ForEach-Object {$_ | ConvertFrom-Json})
  if($added){throw 'Open source was classified as disposable'}
+ if(!(Test-Path -LiteralPath $SourcePstPath)){throw 'Open source was removed'}
  if(!($records | Where-Object {$_.snapshotDetached -eq $true})){throw 'Unused snapshot cleanup was not confirmed'}
  if(!($records | Where-Object {$_.progress -like '*already open*'})){throw 'Open-source progress was not reported'}
 }finally {Remove-Item Function:\New-Object -ErrorAction SilentlyContinue;Remove-Item -LiteralPath $fixture -Recurse -Force}

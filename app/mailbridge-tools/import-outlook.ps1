@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$PstPath, [Parameter(Mandatory=$true)][string]$OutputDirectory, [string]$CancelPath='', [string]$SourcePstPath='')
+param([Parameter(Mandatory=$true)][string]$PstPath, [Parameter(Mandatory=$true)][string]$OutputDirectory, [string]$CancelPath='', [string]$SourcePstPath='', [switch]$ExistingStoreOnly)
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 function ReleaseCom($Value) { if ($null -ne $Value -and [Runtime.InteropServices.Marshal]::IsComObject($Value)) { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($Value) } }
@@ -162,6 +162,10 @@ try {
     @{progress='Reading the PST already open in Outlook. Its data file will stay attached.'} | ConvertTo-Json -Compress
     $stage='Reading the PST already open in Outlook'
   } else { $store=FindPstStore $namespace $fullPath }
+  if (!$store -and $ExistingStoreOnly) {
+    @{needsSnapshot=$true} | ConvertTo-Json -Compress
+    exit 0
+  }
   if (!$store) {
     $stage='Opening the temporary PST copy'
     @{progress='Opening the temporary PST copy in Outlook. If it has a password, Outlook can ask for it again even after you unlock your profile.'} | ConvertTo-Json -Compress

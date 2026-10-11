@@ -32,6 +32,15 @@ async function fixture(t, program, overrides = {}) {
     },
     ...overrides,
   };
+  const exportSnapshot = options.spawnExporter;
+  options.spawnExporter = (command, args) => {
+    if (args.includes('-ExistingStoreOnly')) {
+      assert.equal(args[args.indexOf('-PstPath') + 1], source);
+      assert.equal(fs.readdirSync(path.join(root, 'imports')).filter(n => n.endsWith('.pst')).length, 0);
+      return spawn(process.execPath, ['-e', 'console.log(JSON.stringify({needsSnapshot:true}));console.log(JSON.stringify({snapshotDetached:true}));']);
+    }
+    return exportSnapshot(command, args);
+  };
   return { options, source, original, root, events, abort };
 }
 
@@ -77,7 +86,7 @@ test('exporter failures retain recovery EMLs, remove the snapshot, and leave sou
   assert.deepEqual(fs.readdirSync(path.join(f.root, 'imports')), ['recovery.eml']);
 });
 
-test('cancel during copy preserves original and never starts Outlook', async (t) => {
+test('cancel before checking Outlook preserves original and never starts a worker', async (t) => {
   const f = await fixture(t, '');
   f.options.onProgress = () => f.abort.abort();
   f.options.spawnExporter = () => {
@@ -86,6 +95,34 @@ test('cancel during copy preserves original and never starts Outlook', async (t)
   await assert.rejects(importOutlookPst(f.options), /Import canceled/);
   assert.deepEqual(fs.readFileSync(f.source), f.original);
   assert.deepEqual(fs.readdirSync(path.join(f.root, 'imports')), []);
+});
+
+test('an already-open PST imports without filesystem reads or a disposable PST copy', async t => {
+  const f=await fixture(t, '');
+  const originalReadStream=fs.createReadStream;
+  fs.createReadStream=(file,...args)=>{if(file===f.source)throw new Error('Outlook locks this file against copying');return originalReadStream(file,...args)};
+  t.after(()=>{fs.createReadStream=originalReadStream});
+  f.options.spawnExporter=(command,args)=>{
+    assert.ok(args.includes('-ExistingStoreOnly'));
+    assert.equal(args[args.indexOf('-PstPath')+1],f.source);
+    return spawn(process.execPath,['-e',`const fs=require('fs'),path=require('path');fs.writeFileSync(path.join(process.argv[1],'open.eml'),'real MIME fixture');console.log(JSON.stringify({file:'open.eml',folder:'Sent',role:'sent'}));console.log(JSON.stringify({snapshotDetached:true}));`,args[args.indexOf('-OutputDirectory')+1]]);
+  };
+  let imported=0;
+  f.options.importRecord=async record=>{assert.equal(record.role,'sent');imported++};
+  assert.deepEqual(await importOutlookPst(f.options),{count:1,warnings:0});
+  assert.equal(imported,1);
+  assert.ok(!f.events.some(p=>p.message.startsWith('Copying PST')));
+  assert.deepEqual(fs.readFileSync(f.source),f.original);
+  assert.deepEqual(fs.readdirSync(path.join(f.root,'imports')),[]);
+});
+
+test('canceling an open-store worker never claims a temporary PST was attached', async t=>{
+  const f=await fixture(t,'');
+  f.options.spawnExporter=()=>spawn(process.execPath,['-e','setInterval(()=>{},1000)']);
+  f.options.onProgress=p=>{if(p.message.startsWith('Connecting'))setTimeout(()=>f.abort.abort(),100)};
+  await assert.rejects(importOutlookPst(f.options),error=>error.name==='AbortError'&&!error.message.includes('temporary PST copy'));
+  assert.deepEqual(fs.readFileSync(f.source),f.original);
+  assert.deepEqual(fs.readdirSync(path.join(f.root,'imports')),[]);
 });
 
 test('cancel stops a stalled exporter but retains the snapshot if Outlook detachment is unconfirmed', async (t) => {
